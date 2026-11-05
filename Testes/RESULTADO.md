@@ -1,5 +1,75 @@
 # Resultado da verificacao
 
+## Previa 0.1.21
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **193 testes e zero falhas em cada rodada**. A verificação inclui navegação de todas as opções, sequência das telas da consulta de código, quebra de linhas em 24 colunas, rótulos sem cor e seleção de tons para fundos claro e escuro. O terminal interativo confirmou a limpeza da tela nas transições do fluxo de códigos.
+
+## Previa 0.1.20
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **191 testes e zero falhas em cada rodada**. A triagem automática foi exercitada com um evento de ID 0 sem código, registros anteriores com códigos explicáveis, números no texto livre e um código repetido. A saída exibiu os códigos estruturados e as explicações sem pedir entrada manual.
+
+## Previa 0.1.19
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **189 testes e zero falhas em cada rodada**. Os testes verificaram o despacho das duas consultas em **Computador > Falhas recentes e códigos de erro** e o retorno por 0 ou Enter sem iniciar uma consulta.
+
+## Previa 0.1.18
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **188 testes e zero falhas em cada rodada**. O catálogo ocupa 954.570 bytes e reúne 9.608 entradas. Foram conferidos o tamanho e os campos do arquivo, as explicações revisadas, a leitura parcial sem catálogo e a consulta manual com valores em decimal, hexadecimal e decimal negativo. Os testes incluem a separação entre HRESULT e NTSTATUS.
+
+## Previa 0.1.17
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **186 testes e zero falhas em cada rodada**. O catálogo JSON tem 35 entradas, com 23 códigos de parada e 12 de exceção, em 10.271 bytes. Os testes conferiram os campos e a referência oficial de cada entrada, a tradução de um código novo na triagem e a exibição do código e do incidente quando o arquivo fica indisponível.
+
+## Previa 0.1.16
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **184 testes e zero falhas em cada rodada**. A triagem foi verificada com registros simulados de tela azul, reinício sem código, travamento de aplicativo, exceção de aplicativo traduzida e código desconhecido. Os testes confirmaram que a descrição aparece junto ao código, que registros do mesmo reinício são agrupados e que um evento de vídeo posterior à inicialização fica fora das pistas anteriores.
+
+A consulta de falhas foi executada duas vezes nos logs reais do Windows em modo somente leitura. Nenhuma falha foi provocada. A cobertura de telas azuis e travamentos específicos foi verificada com dados simulados.
+
+## Previa 0.1.15
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **180 testes e zero falhas em cada rodada**. Cada rodada verificou os dois recursos no menu. Para o mapa, os testes conferiram soma de tamanhos, junção ignorada, limite de leitura, cores, retângulos de subpastas e navegação. Para o Autologon, conferiram gravação e desativação simuladas, recuperação após falha e encaminhamento para o console atual quando já elevado.
+
+A janela do mapa abriu e fechou duas vezes com arquivos de teste e apresentou os dois retângulos esperados e a capacidade do volume local. A consulta de estado do Autologon passou duas vezes no Windows real, em modo somente leitura. A gravação do segredo LSA, a autenticação após reiniciar e a desativação real ainda requerem uma VM com conta descartável. O JSON desta prévia registra a segunda rodada da suíte.
+
+## Previa 0.1.14
+
+A opção **Sobre** foi conferida pelo executável em duas aberturas, com retorno por 0 e por Enter. Com dados de sessão fictícios, a tela apresentou apenas a versão 0.1.14, o ano 2026 e o crédito de Gustavo Brandão Gimenez. O JSON distribuído naquela prévia correspondia à suíte da versão 0.1.13.
+
+## Previa 0.1.13
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **174 testes e zero falhas em cada rodada**. Os casos cobriram despacho das opções, retorno por 0 e Enter sem executar ações, opção de bateria em desktop, alinhamento de discos em 36 colunas e diagnóstico de impressão com fila bloqueada, fila inacessível e spooler parado. O JSON registra a segunda rodada desta prévia.
+
+No desktop de teste, a consulta de bateria informou que não se aplicava. O diagnóstico real de impressão consultou 12 filas visíveis e identificou uma fila sinalizada pelo Windows. As condições de fila bloqueada e spooler parado foram simuladas. A consulta real não enviou trabalhos nem alterou filas.
+
+## Previa 0.1.12
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **169 testes e zero falhas em cada rodada**. A regressão do Kingston A400 simulou o relatório SMART completo do firmware SBFK61F1 e confirmou **13% usados e 87% restantes**, sem alerta preventivo. Também foram testados o firmware que usa o valor normalizado, um firmware desconhecido e um valor fora da faixa. O JSON atual registra a segunda rodada desta prévia.
+
+No equipamento real, o E7 do Kingston retornou valor bruto 87 e valor normalizado 13. A consulta corrigida mostrou 13% usados e 87% restantes. A avaliação geral do Kingston e do HDD ficou inconclusiva devido a leitura SMART parcial na sessão de teste. O NVMe mostrou 1% usado e 99% restantes, sem alertas. O HDD permaneceu sem porcentagem.
+
+## Previa 0.1.11
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **167 testes e zero falhas em cada rodada**. Os testes simularam temperatura fora do limite, reserva baixa, erros de mídia, aviso genérico, perda de confiabilidade e modo somente leitura em NVMe. O relatório real manteve o HDD sem porcentagem e inconclusivo por SMART parcial, o Kingston SATA com atenção a 87% de desgaste e o WDC NVMe sem alertas a 1%. A prévia 0.1.12 corrigiu a interpretação invertida do Kingston nesse relatório. O JSON distribuído com a prévia 0.1.11 corresponde à segunda rodada daquela versão.
+
+## Previa 0.1.10
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **162 testes e zero falhas em cada rodada**. O teste de regressão confirmou que o contador `Wear=0` do Windows não gera porcentagem em HDD e que o limiar preventivo sinaliza SSDs com 80% e 87% usados, mantendo um SSD com 79% sem outros alertas. O JSON desta prévia registra a segunda rodada.
+
+Na consulta real, o HDD WDC WD10EZEX apareceu sem porcentagem e ficou inconclusivo por leitura SMART parcial. O SSD Kingston A400 apareceu com 87% de desgaste usado e recomendação de planejar a troca preventiva. O SSD NVMe WDC permaneceu sem alertas, com 1% usado.
+
+## Previa 0.1.9
+
+Duas rodadas completas no Windows PowerShell 5.1 passaram com **161 testes e zero falhas em cada rodada**. Os testes simularam os quatro estados dos discos, confirmaram a cor compartilhada entre resultado e barra e verificaram a proporção em 0%, 25% e 105%. Na bateria, verificaram a barra azul com decimal local, a saturação visual acima de 100% e a ausência de barra quando o Windows não informa a capacidade. O modo `-SemCores` preservou os textos e as barras. A preferência também foi encaminhada à janela elevada de discos em teste simulado. O JSON atual corresponde à segunda rodada desta prévia.
+
+## Previa 0.1.8
+
+Duas rodadas completas no Windows PowerShell 5.1 passaram com **158 testes e zero falhas em cada rodada**. Em cada rodada, quatro casos cobriram a bateria, sete cobriram a opção de discos e onze cobriram a opção de discos com acesso administrativo. Os casos incluem menu, XML com capacidades válidas e ausentes, exclusão de USB e RAID, regras de desgaste e leitura SMART parcial. O JSON distribuído com a prévia 0.1.8 corresponde à segunda rodada daquela versão.
+
+As duas consultas novas também foram executadas duas vezes em um desktop. O relatório nativo confirmou ausência de bateria. O resumo listou três discos internos em cada rodada. O NVMe apresentou leitura completa. Nos dois SATA, o smartctl obteve atributos, mas não pôde ler os limites SMART com as permissões disponíveis. O resultado ficou inconclusivo e preservou o desgaste estimado onde disponível. O cálculo da capacidade em notebook e a interpretação específica do SSD Crucial MX500 foram verificados com dados simulados. A validação em notebook físico, a leitura SATA elevada e a homologação na edição fechada permanecem pendentes.
+
+O ZIP portátil foi extraído em outra pasta. O iniciador abriu a versão 0.1.8 e exibiu a opção de saúde dos discos internos. O pacote inclui o smartctl, a base de discos, a licença e o código-fonte correspondente.
+
 ## Previa 0.1.7
 
 O executavel foi testado a partir do ZIP extraido em outra pasta, com a pasta de trabalho fora do pacote. A abertura mostrou o credito no menu inicial. A opcao **[8] Sobre o Suporte TI** exibiu a versao e o mesmo credito, e Enter retornou ao menu. O nome do aplicativo e do autor foram conferidos nas propriedades do executavel, junto com o icone embutido.

@@ -59,9 +59,12 @@ function Invoke-SuporteVerificacaoDisco {
         Where-Object { $_.DeviceID -match '^[A-Z]:$' -and $_.FileSystem -in @('NTFS','FAT','FAT32','exFAT') } |
         Sort-Object DeviceID)
     if (-not $volumes.Count) { throw 'Nenhum volume local compativel encontrado.' }
+    Write-SuporteLinha '  Escolha o volume local' -SemCores
+    Write-Host ''
     for ($i=0; $i -lt $volumes.Count; $i++) {
-        Write-Host ('[{0}] {1} {2} ({3})' -f ($i+1),$volumes[$i].DeviceID,$volumes[$i].VolumeName,$volumes[$i].FileSystem)
+        Write-SuporteLinha ('  [{0}] {1} {2} ({3})' -f ($i+1),$volumes[$i].DeviceID,$volumes[$i].VolumeName,$volumes[$i].FileSystem) -SemCores
     }
+    Write-Host ''
     $escolha = 0
     $entrada = Read-Host 'Volume (Enter ou 0 volta)'
     if (-not $entrada -or $entrada -eq '0') { return 'Selecao cancelada.' }

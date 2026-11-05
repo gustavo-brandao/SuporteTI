@@ -138,12 +138,16 @@ function Invoke-FixtureConsulta {
         }
         function Get-Process { if($global:SuporteFixtureFailure){throw 'Falha simulada'}; foreach($n in 1..8){[pscustomobject]@{Id=$n;ProcessName=('ProcessoTeste'+$n);WorkingSet64=($n*1MB);CPU=1}} }
         function Get-Service { param($Name); if($global:SuporteFixtureFailure){throw 'Acesso negado simulado'}; [pscustomobject]@{Name='bits';Status='Running';StartType='Manual'} }
-        function Get-PhysicalDisk { if($global:SuporteFixtureFailure){throw 'Falha simulada'}; [pscustomobject]@{DeviceId=0;FriendlyName='SSD Fixture';MediaType='SSD';HealthStatus='Healthy'} }
-        function Get-StorageReliabilityCounter { [CmdletBinding()]param([Parameter(ValueFromPipeline)]$InputObject); process{if($global:SuporteFixtureFailure){throw 'Falha simulada'}; [pscustomobject]@{Wear=10;ReadErrorsUncorrected=0;WriteErrorsUncorrected=0;Temperature=35;PowerOnHours=100}} }
+        function Get-Disk { if($global:SuporteFixtureFailure){throw 'Falha simulada'}; [pscustomobject]@{Number=0;FriendlyName='SSD Fixture';BusType='SATA';HealthStatus='Healthy'} }
+        function Get-StorageReliabilityCounter { [CmdletBinding()]param($Disk); [pscustomobject]@{Wear=10;ReadErrorsUncorrected=0;WriteErrorsUncorrected=0} }
         function Get-NetAdapter { if($global:SuporteFixtureFailure){throw 'Falha simulada'}; [pscustomobject]@{Name='Ethernet';InterfaceDescription='Fixture';Status='Up';LinkSpeed='1 Gbps'} }
         function Get-NetIPConfiguration { if($global:SuporteFixtureFailure){throw 'Falha simulada'}; [pscustomobject]@{InterfaceAlias='Ethernet';IPv4Address='192.0.2.2';DNSServer='192.0.2.1'} }
         function Get-NetRoute { if($global:SuporteFixtureFailure){throw 'Falha simulada'}; [pscustomobject]@{DestinationPrefix='0.0.0.0/0';InterfaceAlias='Ethernet';NextHop='192.0.2.1';RouteMetric=10} }
-        function Get-WinEvent { if($global:SuporteFixtureFailure){throw 'Acesso negado simulado'}; [pscustomobject]@{TimeCreated=(Get-Date);Id=100;LevelDisplayName='Warning';ProviderName='Fixture';Message='Evento de teste'} }
+        function Get-WinEvent {
+            param($FilterHashtable,$MaxEvents,$ErrorAction)
+            if($global:SuporteFixtureFailure){throw 'Acesso negado simulado'}
+            [pscustomobject]@{TimeCreated=(Get-Date);Id=100;RecordId=1;LogName=$FilterHashtable.LogName;LevelDisplayName='Warning';ProviderName='Fixture';Message='Evento de teste'}
+        }
         function Get-ItemProperty { if($global:SuporteFixtureFailure){throw 'Falha simulada'}; [pscustomobject]@{DisplayName='Programa teste';DisplayVersion='1';Publisher='Fixture';ProxyEnable=0;ProxyServer='';AutoConfigURL=''} }
         # Consulta SMART real e limitada, caso presente. Nao altera discos.
         $options=@{}
@@ -175,6 +179,129 @@ foreach ($query in $queries) {
             } else { Assert-True ($text -match 'INDISPONIVEL|ACESSO NEGADO') 'Falha nao identificada.' }
         }
     }
+}
+
+function New-FixtureEventoFalha {
+    param([string]$Canal,[string]$Provedor,[int]$Id,[int]$Registro,[datetime]$Hora,[string]$Dados='')
+    $evento = [pscustomobject]@{ LogName=$Canal; ProviderName=$Provedor; Id=$Id; RecordId=$Registro; TimeCreated=$Hora; Message='Mensagem de teste'; Xml=$Dados }
+    $evento | Add-Member ScriptMethod ToXml { '<Event xmlns="http://schemas.microsoft.com/win/2004/08/events/event"><EventData>' + $this.Xml + '</EventData></Event>' }
+    $evento
+}
+
+function Invoke-FixtureFalhas {
+    param([object[]]$Eventos)
+    function Get-WinEvent {
+        param($FilterHashtable,$MaxEvents,$ErrorAction)
+        $Eventos | Where-Object {
+            $_.LogName -eq $FilterHashtable.LogName -and
+            (-not $FilterHashtable.Id -or $_.Id -in $FilterHashtable.Id) -and
+            (-not $FilterHashtable.ProviderName -or $_.ProviderName -eq $FilterHashtable.ProviderName)
+        }
+    }
+    & $collector -Id falhas | Out-String
+}
+
+Test-Case falhas 'agrupa reinicio e tela azul com codigo explicado e contexto anterior' {
+    $hora = Get-Date
+    $eventos = @(
+        New-FixtureEventoFalha System disk 153 1 ($hora.AddMinutes(-10))
+        New-FixtureEventoFalha System Microsoft-Windows-Kernel-General 12 2 ($hora.AddMinutes(-3))
+        New-FixtureEventoFalha System Microsoft-Windows-Kernel-Power 41 3 ($hora.AddMinutes(-2)) '<Data Name="BugcheckCode">278</Data>'
+        New-FixtureEventoFalha System Microsoft-Windows-WER-SystemErrorReporting 1001 4 ($hora.AddMinutes(-1)) '<Data Name="param1">0x00000116 (0x0)</Data><Data Name="param2">C:\Windows\MEMORY.DMP</Data>'
+        New-FixtureEventoFalha System EventLog 6008 5 ($hora.AddSeconds(-45))
+        New-FixtureEventoFalha System Display 4101 6 ($hora.AddSeconds(-20))
+    )
+    $texto = Invoke-FixtureFalhas $eventos
+    Assert-True ($texto -match 'Tela azul.*recuperacao falhou' -and $texto -match '0x00000116 - VIDEO_TDR_FAILURE' -and
+        $texto -match 'evento 6008' -and $texto -match 'gravado um arquivo de despejo' -and $texto -match 'gravacao no disco precisou ser repetida' -and
+        $texto -notmatch 'evento 4101' -and ([regex]::Matches($texto,'evento 41\b')).Count -eq 1) 'Incidente duplicado, sem traducao ou com pista posterior a inicializacao.'
+}
+
+Test-Case falhas 'interpreta codigo decimal e preserva incerteza no reinicio sem codigo' {
+    $hora = Get-Date
+    $comCodigo = New-FixtureEventoFalha System Microsoft-Windows-Kernel-Power 41 1 $hora '<Data Name="BugcheckCode">159</Data>'
+    $semCodigo = New-FixtureEventoFalha System Microsoft-Windows-Kernel-Power 41 2 $hora '<Data Name="BugcheckCode">0</Data>'
+    $texto = Invoke-FixtureFalhas @($comCodigo)
+    Assert-True ($texto -match '0x0000009F - DRIVER_POWER_STATE_FAILURE' -and $texto -match 'transicao') 'Codigo decimal nao foi traduzido.'
+    $texto = Invoke-FixtureFalhas @($semCodigo)
+    Assert-True ($texto -match 'nao identificam o motivo' -and $texto -notmatch 'Tela azul|falha de energia') 'Reinicio sem codigo recebeu causa indevida.'
+}
+
+Test-Case falhas 'distingue travamento de aplicativo e codigo de parada desconhecido' {
+    $hora = Get-Date
+    $app = New-FixtureEventoFalha Application 'Application Hang' 1002 1 $hora '<Data Name="AppName">Editor.exe</Data>'
+    $outro = New-FixtureEventoFalha Application 'Windows Error Reporting' 1001 2 $hora '<Data Name="param1">0x00000116</Data>'
+    $texto = Invoke-FixtureFalhas @($app,$outro)
+    Assert-True ($texto -match 'Editor.exe parou de responder' -and $texto -notmatch 'Tela azul') 'Evento de aplicativo confundido com tela azul.'
+    $parada = New-FixtureEventoFalha System BugCheck 1001 3 $hora '<Data Name="param1">0x0000ABCD</Data>'
+    $texto = Invoke-FixtureFalhas @($parada)
+    Assert-True ($texto -match '0x0000ABCD' -and $texto -match 'nao tem descricao no catalogo') 'Codigo desconhecido foi omitido ou recebeu diagnostico indevido.'
+}
+
+Test-Case falhas 'traduz excecao de aplicativo e preserva o modulo nos detalhes' {
+    $app = New-FixtureEventoFalha Application 'Application Error' 1000 1 (Get-Date) '<Data Name="AppName">Editor.exe</Data><Data Name="ExceptionCode">c0000005</Data><Data Name="ModuleName">ntdll.dll</Data>'
+    $texto = Invoke-FixtureFalhas @($app)
+    Assert-True ($texto -match 'Editor.exe fechou inesperadamente.*tentou acessar uma area de memoria' -and
+        $texto -match 'Modulo registrado: ntdll.dll' -and $texto -match 'Codigo de excecao 0xC0000005') 'A excecao nao foi explicada ou perdeu os detalhes.'
+}
+
+Test-Case falhas 'erro sem codigo nao oculta codigos anteriores nem interpreta numeros do texto' {
+    $hora = Get-Date
+    $semCodigo = New-FixtureEventoFalha Application 'Provedor de teste' 0 10 $hora
+    $semCodigo.Message = 'A pasta de teste nao foi encontrada. Registro de operacao 0x80070005.'
+    $maisAntigo = New-FixtureEventoFalha Application 'Servico de teste' 9 9 ($hora.AddMinutes(-20)) '<Data Name="NTStatus">0xC0000135</Data>'
+    $repetido = New-FixtureEventoFalha Application 'Servico de teste' 9 8 ($hora.AddMinutes(-30)) '<Data Name="NTStatus">0xC0000135</Data>'
+    $texto = Invoke-FixtureFalhas @($semCodigo,$maisAntigo,$repetido)
+    Assert-True ($texto -match 'evento 0' -and $texto -match 'nao trouxe um codigo' -and
+        $texto -match 'NTStatus 0xC0000135' -and $texto -match 'nao encontrou uma biblioteca necessaria' -and
+        ([regex]::Matches($texto,'0xC0000135')).Count -eq 1 -and $texto -notmatch 'HRESULT 0x80070005') 'A triagem ocultou codigo anterior, repetiu o codigo ou inferiu codigo pelo texto.'
+}
+
+Test-Case falhas 'lista codigos de ocorrencias anteriores sem entrada manual' {
+    $hora = Get-Date
+    $app = New-FixtureEventoFalha Application 'Application Error' 1000 10 $hora '<Data Name="AppName">Editor.exe</Data><Data Name="ExceptionCode">c0000005</Data>'
+    $parada = New-FixtureEventoFalha System BugCheck 1001 9 ($hora.AddMinutes(-40)) '<Data Name="param1">0x00000116 (0x0)</Data>'
+    $texto = Invoke-FixtureFalhas @($app,$parada)
+    Assert-True ($texto -match 'Codigo de excecao 0xC0000005' -and $texto -match 'Outros codigos de falha encontrados' -and
+        $texto -match 'Codigo de parada 0x00000116' -and $texto -match 'recuperacao falhou') 'Um codigo ou sua explicacao ficou de fora da triagem automatica.'
+}
+
+Test-Case falhas 'catalogo indexa as quatro familias e preserva as explicacoes revisadas' {
+    $arquivo = Get-Item -LiteralPath (Join-Path $root 'Modulos\CatalogoFalhas.json')
+    $dados = Get-Content -LiteralPath $arquivo.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True ($dados.Versao -eq 2 -and $arquivo.Length -ge 900000 -and $arquivo.Length -le 1000000) 'Versao ou tamanho do catalogo incorreto.'
+    foreach ($familia in @($dados.Paradas,$dados.Excecoes,$dados.Win32,$dados.HRESULT)) {
+        Assert-True (@($familia.PSObject.Properties).Count -gt 350) 'Familia sem a cobertura esperada.'
+        foreach ($entrada in $familia.PSObject.Properties) {
+            $regra = $entrada.Value
+            Assert-True ($entrada.Name -cmatch '^[0-9A-F]{8}$' -and $regra.Nome -and
+                $dados.Fontes.($regra.Fonte) -match '^https://learn\.microsoft\.com/') "Entrada incompleta para $($entrada.Name)."
+        }
+    }
+    $app = New-FixtureEventoFalha Application 'Application Error' 1000 1 (Get-Date) '<Data Name="AppName">Editor.exe</Data><Data Name="ExceptionCode">C0000135</Data>'
+    $texto = Invoke-FixtureFalhas @($app)
+    Assert-True ($texto -match 'nao encontrou uma biblioteca necessaria' -and $texto -match 'requisitos de instalacao') 'O novo codigo nao foi traduzido pelo coletor.'
+}
+
+Test-Case codigofalha 'decodifica decimal, HRESULT negativo e parada com referencia' {
+    $win32 = & $collector -Id codigofalha -Opcoes @{Familia='Win32';Codigo='5'} | Out-String
+    $hresult = & $collector -Id codigofalha -Opcoes @{Familia='HRESULT';Codigo='-2147024891'} | Out-String
+    $parada = & $collector -Id codigofalha -Opcoes @{Familia='Paradas';Codigo='0xC2'} | Out-String
+    $familiaErrada = & $collector -Id codigofalha -Opcoes @{Familia='HRESULT';Codigo='0xC0000005'} | Out-String
+    Assert-True ($win32 -match '0x00000005' -and $win32 -match 'ERROR_ACCESS_DENIED' -and
+        $hresult -match '0x80070005' -and $hresult -match 'E_ACCESSDENIED' -and
+        $parada -match 'BAD_POOL_CALLER' -and $parada -match 'learn.microsoft.com') 'O codigo foi interpretado na familia errada ou perdeu a referencia.'
+    Assert-True ($familiaErrada -match 'Descricao em portugues indisponivel' -and $familiaErrada -notmatch 'STATUS_ACCESS_VIOLATION') 'A consulta misturou NTSTATUS e HRESULT.'
+}
+
+Test-Case falhas 'catalogo indisponivel preserva o codigo de parada e a ocorrencia' {
+    function Get-Content {
+        param($LiteralPath,[switch]$Raw,$Encoding,$ErrorAction)
+        throw 'Catalogo simulado indisponivel.'
+    }
+    $parada = New-FixtureEventoFalha System BugCheck 1001 1 (Get-Date) '<Data Name="param1">0x000000EF</Data>'
+    $texto = Invoke-FixtureFalhas @($parada)
+    Assert-True ($texto -match '\[INDISPONIVEL\] Catalogo' -and $texto -match 'registrou uma tela azul' -and $texto -match '0x000000EF') 'Falha no catalogo ocultou a ocorrencia.'
 }
 
 Test-Case rede 'menu exibe consultas e mudancas IPv4 separadas' {
@@ -231,6 +358,65 @@ Test-Case ping 'sucesso, perda parcial e falta de resposta recebem cores distint
         Show-SuporteResultado $resultado
     }
     Assert-True (($cores -join ',') -eq 'Green,Yellow,Red') 'Cores de ping incorretas.'
+}
+Test-Case discos 'status e barra de desgaste usam a mesma cor no console' {
+    $linhas = & $module {
+        function Get-SuporteLargura { 100 }
+        function Write-Host {
+            param($Object,$ForegroundColor)
+            if ($Object -match '^(\[INDISPONIVEL\] )?Disco|^  (Desgaste estimado:|\[[#-]+\]$)') {
+                [pscustomobject]@{Texto=$Object;Cor=$ForegroundColor}
+            }
+        }
+        $texto = @(
+            'Disco 0 (SSD): Sem alertas detectados. Desgaste estimado: 25% usado.'
+            'Disco 1 (NVMe): Atencao - avaliar troca. Desgaste estimado: 105% usado.'
+            'Disco 2 (HDD): Troca recomendada. Priorize o backup.'
+            '[INDISPONIVEL] Disco 3 (SSD): Inconclusivo. Desgaste estimado: 0% usado.'
+        ) -join "`n"
+        $resultado = [pscustomobject]@{Status='Concluido';Texto=$texto}
+        Show-SuporteResultado $resultado
+        Show-SuporteResultado $resultado -SemCores
+    }
+    Assert-True ($linhas.Count -eq 20 -and ($linhas[0..9].Cor -join ',') -eq 'Blue,Blue,Blue,Yellow,Yellow,Yellow,Red,Gray,Gray,Gray') 'Cores dos discos ou barras incorretas.'
+    Assert-True ($linhas[2].Texto -eq '  [#####---------------]' -and $linhas[4].Texto -match '105%' -and
+        $linhas[5].Texto -eq '  [####################]' -and $linhas[9].Texto -eq '  [--------------------]') 'Proporcao da barra ou percentual de desgaste incorreto.'
+    Assert-True (($linhas[10..19].Cor -join '') -eq '' -and ($linhas[10..19].Texto -join "`n") -eq ($linhas[0..9].Texto -join "`n")) 'SemCores alterou o conteudo ou manteve cores.'
+}
+Test-Case diskhealth 'encaminha SemCores para a janela elevada' {
+    $argumentos = & $module {
+        function Test-SuporteAdmin { $false }
+        function Write-Host {}
+        function Start-Process {
+            param($FilePath,$ArgumentList,$Verb,[switch]$PassThru,[switch]$Wait)
+            $script:ArgumentosDiscoTeste = $ArgumentList
+            [pscustomobject]@{ExitCode=0}
+        }
+        Request-SuporteOperacao diskhealth 'C:\Documentos' -SemCores
+        $script:ArgumentosDiscoTeste
+    }
+    Assert-True ($argumentos -match '-Acao diskhealth .* -SemCores$') 'A preferencia de cores nao chegou a janela elevada.'
+}
+Test-Case bateria 'barra usa capacidade relativa com decimal local e omite dado ausente' {
+    $linhas = & $module {
+        function Get-SuporteLargura { 100 }
+        function Write-Host {
+            param($Object,$ForegroundColor)
+            if ($Object -match '^  \[[#-]+\]$') {
+                [pscustomobject]@{Texto=$Object;Cor=$ForegroundColor}
+            }
+        }
+        $resultado = [pscustomobject]@{Status='Concluido';Texto=( @(
+            'Bateria 1: 82,5% da capacidade original (41,25 Wh de 50 Wh).'
+            'Bateria 2: 105% da capacidade original (21 Wh de 20 Wh).'
+            '[INDISPONIVEL] Bateria 3: Capacidade nao informada.'
+        ) -join "`n" )}
+        Show-SuporteResultado $resultado
+        Show-SuporteResultado $resultado -SemCores
+    }
+    Assert-True ($linhas.Count -eq 4 -and ($linhas[0..1].Cor -join ',') -eq 'Blue,Blue' -and
+        $linhas[0].Texto -eq '  [################----]' -and $linhas[1].Texto -eq '  [####################]' -and
+        ($linhas[2..3].Cor -join '') -eq '') 'Barras de capacidade incorretas.'
 }
 Test-Case sistema 'inventario inclui CPU e RAM atuais' {
     $text=Invoke-FixtureConsulta sistema $false
@@ -332,7 +518,17 @@ Test-Case netstatic 'rejeita gateway fora da sub-rede e enderecos reservados' {
 Test-Case discos 'sem dados e inconclusivo' { Assert-True ((Get-SuporteDiscoClassificacao).Estado -eq 'Inconclusivo') 'Ausencia de dados virou saudavel.' }
 Test-Case discos 'ocupacao exibe espaco usado e percentual' {
     $text = Invoke-FixtureConsulta discos $false
-    Assert-True ($text -match 'Usado_GiB' -and $text -match 'Uso_%' -and $text -match 'C:\s+NTFS\s+100\s+50\s+50\s+50') ('Ocupacao incorreta: ' + $text)
+    Assert-True ($text -match 'Volume C: \(NTFS\)\s+\[#####-----\] 50% usado' -and $text -match 'Total: 100 GiB \| Usado: 50 GiB \| Livre: 50 GiB') ('Ocupacao incorreta: ' + $text)
+}
+Test-Case discos 'console estreito preserva texto e alinha barra de desgaste' {
+    $linhas = & $module {
+        function Get-SuporteLargura { 36 }
+        function Write-Host { param($Object,$ForegroundColor); [string]$Object }
+        $r = [pscustomobject]@{Status='Concluido';Texto='Disco 1 (KINGSTON SA400S37960G): Sem alertas detectados. Nenhum alerta nos indicadores verificados. Desgaste estimado: 13% usado. Resistencia restante: 87%.'}
+        Show-SuporteResultado $r
+    }
+    Assert-True (@($linhas | Where-Object Length -gt 36).Count -eq 0 -and ($linhas -join ' ') -match 'KINGSTON SA400S37960G' -and
+        ($linhas -join ' ') -match '87%' -and $linhas -contains '  [##------------------]') 'Console estreito perdeu texto ou desalinhou o grafico.'
 }
 Test-Case chromecache 'remove arquivos de cache e preserva dados dos perfis em pasta de teste' {
     $dados = Join-Path $testRoot 'ChromeTeste'
@@ -384,13 +580,19 @@ Test-Case discos 'desgaste 100 requer atencao' { Assert-True ((Get-SuporteDiscoC
 foreach ($sample in @(
     @{Nome='SMART aprovado';Json='{"smart_status":{"passed":true}}';Expected='Sem alertas detectados'},
     @{Nome='SMART falhou';Json='{"smart_status":{"passed":false}}';Expected='Critico/degradado'},
-    @{Nome='NVMe critico';Json='{"smart_status":{"passed":true},"nvme_smart_health_information_log":{"critical_warning":4,"percentage_used":1,"media_errors":0}}';Expected='Critico/degradado'},
-    @{Nome='ATA setores pendentes';Json='{"smart_status":{"passed":true},"ata_smart_attributes":{"table":[{"id":197,"name":"Pending","raw":{"value":1}}]}}';Expected='Atencao'},
+    @{Nome='NVMe com confiabilidade degradada';Json='{"smart_status":{"passed":false},"nvme_smart_health_information_log":{"critical_warning":4,"percentage_used":1,"media_errors":0}}';Expected='Critico/degradado';Motivo='perda de confiabilidade'},
+    @{Nome='NVMe com alerta apenas de temperatura';Json='{"smart_status":{"passed":false,"nvme":{"value":2}},"nvme_smart_health_information_log":{"critical_warning":2,"media_errors":0}}';Expected='Atencao';Motivo='temperatura'},
+    @{Nome='NVMe com reserva baixa e log indisponivel';Json='{"smart_status":{"passed":false,"nvme":{"value":1}}}';Expected='Atencao';Motivo='reserva'},
+    @{Nome='NVMe somente leitura prevalece sobre alerta termico';Json='{"smart_status":{"passed":false,"nvme":{"value":10}},"nvme_smart_health_information_log":{"critical_warning":10,"media_errors":0}}';Expected='Critico/degradado';Motivo='somente leitura'},
+    @{Nome='NVMe com erros de midia e SMART global aprovado';Json='{"smart_status":{"passed":true},"nvme_smart_health_information_log":{"critical_warning":0,"media_errors":1}}';Expected='Atencao';Motivo='integridade'},
+    @{Nome='NVMe com aviso global sem motivo especificado';Json='{"device":{"protocol":"NVMe"},"smart_status":{"passed":false}}';Expected='Atencao';Motivo='outro alerta'},
+    @{Nome='ATA setores pendentes';Json='{"smart_status":{"passed":true},"ata_smart_attributes":{"table":[{"id":197,"name":"Current_Pending_Sector","raw":{"value":1}}]}}';Expected='Atencao'},
     @{Nome='dados ausentes';Json='{}';Expected='Inconclusivo'}
 )) {
     Test-Case diskhealth $sample.Nome {
-        $state=& $module { (Get-SuporteSmartClassificacao ($args[0] | ConvertFrom-Json)).Estado } $sample.Json
-        Assert-True ($state -eq $sample.Expected) ('Classificacao incorreta: '+$state)
+        $classificacao=& $module { Get-SuporteSmartClassificacao ($args[0] | ConvertFrom-Json) } $sample.Json
+        Assert-True ($classificacao.Estado -eq $sample.Expected) ('Classificacao incorreta: '+$classificacao.Estado)
+        if ($sample.Motivo) { Assert-True ($classificacao.Motivos -match $sample.Motivo) ('Motivo incorreto: '+$classificacao.Motivos) }
     }
 }
 Test-Case diskhealth 'nao admin nao executa leitura elevada' {
@@ -552,6 +754,302 @@ Test-Case diskhealth 'integridade divergente bloqueia smartctl' {
     Assert-True $blocked 'Executavel divergente nao foi recusado.'
 }
 
+Test-Case diskhealth 'relatorio consolida discos internos e preserva alerta em leitura parcial' {
+    $resumo = & $module {
+        function Get-Disk {
+            [pscustomobject]@{Number=0;FriendlyName='HDD teste';BusType='SATA';HealthStatus='Healthy'}
+            [pscustomobject]@{Number=1;FriendlyName='SSD teste';BusType='NVMe';HealthStatus='Healthy'}
+            [pscustomobject]@{Number=2;FriendlyName='USB teste';BusType='USB';HealthStatus='Unhealthy'}
+            [pscustomobject]@{Number=3;FriendlyName='RAID teste';BusType='RAID';HealthStatus='Unhealthy'}
+        }
+        function Get-StorageReliabilityCounter { param($Disk); throw 'Contadores nativos indisponiveis.' }
+        function Invoke-SuporteSmartJson {
+            param($Argumentos)
+            switch ($Argumentos[-1]) {
+                '/dev/pd0' { [pscustomobject]@{Codigo=12;Dados=(' {"smart_status":{"passed":false}}' | ConvertFrom-Json)} }
+                '/dev/pd1' {
+                    if ($Argumentos -notcontains 'nvme') { throw 'Tipo de dispositivo incorreto.' }
+                    [pscustomobject]@{Codigo=0;Dados=(' {"smart_status":{"passed":true},"nvme_smart_health_information_log":{"percentage_used":105}}' | ConvertFrom-Json)}
+                }
+                default { throw 'Dispositivo fora do escopo.' }
+            }
+        }
+        @(Get-SuporteSmartResumo)
+    }
+    Assert-True ($resumo.Count -eq 2 -and $resumo[0] -match 'Disco 0.*Troca recomendada.*SMART parcial' -and
+        $resumo[1] -match 'Disco 1.*Atencao.*105% usado') 'Resumo incorreto ou disco externo consultado.'
+}
+
+Test-Case diskhealth 'SMART parcial sem alertas permanece inconclusivo' {
+    $estado = & $module { (Get-SuporteSmartClassificacao ('{"smart_status":{"passed":true}}' | ConvertFrom-Json) 4).Estado }
+    Assert-True ($estado -eq 'Inconclusivo') 'O resumo aceitou leitura SMART parcial como suficiente.'
+}
+
+Test-Case diskhealth 'HDD omite Wear do Windows e SSD com desgaste elevado recebe atencao' {
+    $resumo = & $module {
+        function Get-Disk {
+            foreach ($numero in 0..3) {
+                [pscustomobject]@{Number=$numero;FriendlyName="Disco teste $numero";BusType='SATA';HealthStatus='Healthy'}
+            }
+        }
+        function Get-StorageReliabilityCounter {
+            param($Disk)
+            [pscustomobject]@{Wear=$(if ($Disk.Number -eq 2) { 80 } else { 0 })}
+        }
+        function Invoke-SuporteSmartJson {
+            param($Argumentos)
+            $dados = switch ($Argumentos[-1]) {
+                '/dev/pd0' { '{"smart_status":{"passed":true},"rotation_rate":7200}' }
+                '/dev/pd1' { '{"smart_status":{"passed":true},"rotation_rate":0,"endurance_used":{"current_percent":87}}' }
+                '/dev/pd2' { '{"smart_status":{"passed":true},"rotation_rate":0}' }
+                '/dev/pd3' { '{"smart_status":{"passed":true},"rotation_rate":0,"endurance_used":{"current_percent":79}}' }
+            }
+            [pscustomobject]@{Codigo=0;Dados=($dados | ConvertFrom-Json)}
+        }
+        @(Get-SuporteSmartResumo)
+    }
+    Assert-True ($resumo.Count -eq 4 -and $resumo[0] -match 'Sem alertas' -and $resumo[0] -notmatch 'Desgaste estimado' -and
+        $resumo[1] -match 'Atencao.*troca preventiva.*87% usado' -and $resumo[2] -match 'Atencao.*80% usado' -and
+        $resumo[3] -match 'Sem alertas.*79% usado') 'Desgaste exibido para HDD ou limiar preventivo aplicado incorretamente.'
+}
+
+Test-Case diskhealth 'desgaste SATA usa formato confirmado e rejeita atributo ambiguo' {
+    $valores = & $module {
+        $dados = '{"model_name":"CT500MX500SSD1","ata_smart_attributes":{"table":[{"id":202,"name":"Percent_Lifetime_Remain","value":78,"raw":{"value":22}}]}}' | ConvertFrom-Json
+        (Get-SuporteSmartClassificacao $dados).Desgaste
+        $dados.ata_smart_attributes.table[0].raw.value = 78
+        $null -eq (Get-SuporteSmartClassificacao $dados).Desgaste
+        $dados.ata_smart_attributes.table[0].raw.value = 22
+        $dados.model_name = 'SSD modelo desconhecido'
+        $null -eq (Get-SuporteSmartClassificacao $dados).Desgaste
+    }
+    Assert-True ($valores[0] -eq 22 -and $valores[1] -and $valores[2]) 'A regra de desgaste foi aplicada fora do modelo ou do formato validado.'
+}
+
+Test-Case diskhealth 'A400 SBFK interpreta E7 bruto como restante e ignora agregado invertido' {
+    $resumo = & $module {
+        function Get-Disk { [pscustomobject]@{Number=1;FriendlyName='KINGSTON SA400S37960G';BusType='SATA';HealthStatus='Healthy'} }
+        function Get-StorageReliabilityCounter { param($Disk); [pscustomobject]@{Wear=87} }
+        function Invoke-SuporteSmartJson {
+            $dados = '{"model_name":"KINGSTON SA400S37960G","firmware_version":"SBFK61F1","smart_status":{"passed":true},"endurance_used":{"current_percent":87},"ata_smart_attributes":{"table":[{"id":231,"value":13,"raw":{"value":87}}]}}' | ConvertFrom-Json
+            [pscustomobject]@{Codigo=0;Dados=$dados}
+        }
+        Get-SuporteSmartResumo
+    }
+    Assert-True ($resumo -match 'Sem alertas detectados.*13% usado\. Resistencia restante: 87%\.') 'O Kingston teve o desgaste invertido ou recebeu alerta indevido.'
+}
+
+Test-Case diskhealth 'A400 seleciona E7 pelo firmware e omite desgaste ambiguo' {
+    $valores = & $module {
+        $dados = '{"model_name":"KINGSTON SA400S37960G","firmware_version":"03070009","endurance_used":{"current_percent":13},"ata_smart_attributes":{"table":[{"id":231,"value":87,"raw":{"value":13}}]}}' | ConvertFrom-Json
+        (Get-SuporteSmartClassificacao $dados).Desgaste
+        $dados.firmware_version = 'DESCONHECIDO'
+        $null -eq (Get-SuporteSmartClassificacao $dados).Desgaste
+        $dados.firmware_version = 'SBFK61F1'
+        $dados.ata_smart_attributes.table[0].raw.value = 101
+        $null -eq (Get-SuporteSmartClassificacao $dados).Desgaste
+    }
+    Assert-True ($valores[0] -eq 13 -and $valores[1] -and $valores[2]) 'Firmware ou valor fora da faixa produziram percentual incorreto.'
+}
+
+Test-Case bateria 'relatorio com namespace calcula capacidade de cada bateria' {
+    $xml = Join-Path $testRoot 'baterias.xml'
+    [IO.File]::WriteAllText($xml,'<BatteryReport xmlns="urn:schemas-microsoft-com:batteryreport"><Batteries><Battery><DesignCapacity>50000</DesignCapacity><FullChargeCapacity>40000</FullChargeCapacity></Battery><Battery><DesignCapacity>20000</DesignCapacity><FullChargeCapacity>21000</FullChargeCapacity></Battery></Batteries></BatteryReport>')
+    $linhas = & $module { Get-SuporteBateriaResumo $args[0] } $xml
+    Assert-True ($linhas.Count -eq 2 -and $linhas[0] -match 'Bateria 1: 80%.*40 Wh de 50 Wh' -and
+        $linhas[1] -match 'Bateria 2: 105%.*21 Wh de 20 Wh') 'Resumo da capacidade incorreto.'
+}
+
+Test-Case bateria 'distingue capacidade ausente de nenhuma bateria' {
+    $xml = Join-Path $testRoot 'bateria-ausente.xml'
+    [IO.File]::WriteAllText($xml,'<BatteryReport><Batteries><Battery><DesignCapacity>4294967295</DesignCapacity><FullChargeCapacity>20000</FullChargeCapacity></Battery></Batteries></BatteryReport>')
+    $indisponivel = & $module { Get-SuporteBateriaResumo $args[0] } $xml
+    [IO.File]::WriteAllText($xml,'<BatteryReport><Batteries/></BatteryReport>')
+    $vazio = & $module { Get-SuporteBateriaResumo $args[0] } $xml
+    Assert-True ($indisponivel -match 'Capacidade nao informada' -and $vazio -match 'Nenhuma bateria detectada') 'Ausencia de dados foi confundida com ausencia de bateria.'
+}
+
+Test-Case bateria 'desktop com nobreak USB exibe a opcao e informa que nao se aplica' {
+    $saida = & $module {
+        function Get-CimInstance {
+            param($ClassName,$OperationTimeoutSec)
+            if ($ClassName -eq 'Win32_SystemEnclosure') { [pscustomobject]@{ChassisTypes=@(3)} }
+            else { [pscustomobject]@{PNPDeviceID='USB\VID_0000'} }
+        }
+        $script:MenuQueue = New-Object 'System.Collections.Generic.Queue[string]'
+        foreach ($entrada in @('1','13','n','0','','')) { $script:MenuQueue.Enqueue($entrada) }
+        function Read-Host { $script:MenuQueue.Dequeue() }
+        $script:SaidaMenuTeste = New-Object 'System.Collections.Generic.List[string]'
+        function Write-Host { $script:SaidaMenuTeste.Add(($args -join ' ')) }
+        function Write-SuporteTela {}
+        function Invoke-SuporteConsulta {
+            param($Id)
+            $texto = & $argsCollector -Id $Id | Out-String
+            [pscustomobject]@{Status='Concluido';Texto=$texto}
+        }
+        $argsCollector = $args[0]
+        Start-SuporteMenu -ModuleRoot 'C:\Teste' -SemCores
+        $script:SaidaMenuTeste.ToArray()
+    } $collector
+    Assert-True (($saida -join "`n") -match '\[13\] Saude da bateria' -and ($saida -join "`n") -match 'nao se aplica a desktop') 'Desktop nao apresentou opcao ou explicacao.'
+}
+
+Test-Case mapaocupacao 'varredura agrega tamanhos e para de forma segura ao atingir limite' {
+    Add-Type -Path (Join-Path $root 'Recursos\SuporteTI.Windows.dll')
+    $pasta = Join-Path $testRoot 'mapa'
+    $dados = Join-Path $pasta 'Dados'
+    [void][IO.Directory]::CreateDirectory($dados)
+    [IO.File]::WriteAllBytes((Join-Path $dados 'maior.bin'),[byte[]]::new(3072))
+    [IO.File]::WriteAllBytes((Join-Path $pasta 'menor.bin'),[byte[]]::new(1024))
+    $outro = Join-Path $testRoot 'fora-do-mapa'
+    [void][IO.Directory]::CreateDirectory($outro)
+    [IO.File]::WriteAllBytes((Join-Path $outro 'externo.bin'),[byte[]]::new(8192))
+    New-Item -ItemType Junction -Path (Join-Path $pasta 'atalho') -Target $outro | Out-Null
+    $token = [Threading.CancellationToken]::None
+    $completo = [SuporteTI.VarreduraOcupacao]::Ler($pasta,100,5,$token)
+    $parcial = [SuporteTI.VarreduraOcupacao]::Ler($pasta,1,5,$token)
+    Assert-True ($completo.Raiz.Bytes -eq 4096 -and $completo.Ignorados -eq 1 -and $completo.Raiz.Filhos[0].Nome -eq 'Dados' -and
+        $parcial.Limite -match 'limite de itens' -and $parcial.Raiz.Bytes -lt 4096) 'Mapa contou a juncao ou errou a soma e o limite.'
+}
+
+Test-Case mapaocupacao 'janela desenha cores e permite navegar para a subpasta' {
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+    $pasta = Join-Path $testRoot 'mapa'
+    $r = [SuporteTI.VarreduraOcupacao]::Ler($pasta,100,5,[Threading.CancellationToken]::None)
+    $form = New-Object SuporteTI.MapaOcupacao
+    $flags = [Reflection.BindingFlags]'Instance,NonPublic'
+    $tipo = $form.GetType()
+    $painel = $tipo.GetField('desenho',$flags).GetValue($form)
+    $bitmap = New-Object Drawing.Bitmap($painel.Width,$painel.Height)
+    $tela = [Drawing.Graphics]::FromImage($bitmap)
+    try {
+        $tipo.GetMethod('Exibir',$flags).Invoke($form,@($r.Raiz))
+        $tipo.GetMethod('Desenhar',$flags).Invoke($form,@($tela))
+        $blocos = $tipo.GetField('blocos',$flags).GetValue($form)
+        $internos = $tipo.GetField('blocosInternos',$flags).GetValue($form)
+        Assert-True ($blocos.Count -eq 2 -and $internos.Count -eq 1) 'A janela nao desenhou pastas e arquivos.'
+        Assert-True ($bitmap.GetPixel(8,22).ToArgb() -ne $bitmap.GetPixel($painel.Width-8,22).ToArgb()) 'Os blocos nao apresentaram cores distintas.'
+        $tipo.GetMethod('Entrar',$flags).Invoke($form,@($r.Raiz.Filhos[0]))
+        $lista = $tipo.GetField('lista',$flags).GetValue($form)
+        Assert-True ($lista.Items.Count -eq 1 -and $lista.Items[0].Text -eq 'maior.bin') 'A lista nao acompanhou a navegacao.'
+    } finally { $tela.Dispose(); $bitmap.Dispose(); $form.Dispose() }
+}
+
+function New-FixtureWinlogon {
+    $chave = [pscustomobject]@{ Valores=@{AutoAdminLogon='0';DefaultUserName='anterior'}; Falhar=$false }
+    $chave | Add-Member ScriptMethod GetValue { param($nome); if($nome -eq 'DefaultPassword'){throw 'Senha legada foi lida.'}; $this.Valores[$nome] }
+    $chave | Add-Member ScriptMethod GetValueNames { [string[]]@($this.Valores.Keys) }
+    $chave | Add-Member ScriptMethod SetValue {
+        param($nome,$valor,$tipo)
+        if($this.Falhar -and $nome -eq 'AutoAdminLogon' -and $valor -eq '1'){throw 'Falha simulada de registro.'}
+        $this.Valores[$nome]=$valor
+    }
+    $chave | Add-Member ScriptMethod DeleteValue { param($nome,$ausente); $this.Valores.Remove($nome) }
+    $chave | Add-Member ScriptMethod Dispose {}
+    $chave
+}
+
+Test-Case autologon 'configura segredo antes de habilitar e restaura metadados em falha' {
+    foreach ($falhar in @($false,$true)) {
+        $chave = New-FixtureWinlogon
+        $chave.Falhar = $falhar
+        $r = & $module {
+            param($registro)
+            $script:ChamadasLogon = New-Object 'System.Collections.Generic.List[string]'
+            function Set-SuporteSegredoLogon {
+                param([Security.SecureString]$Senha)
+                if($registro.Valores.AutoAdminLogon -ne '0'){throw 'Segredo alterado enquanto o logon estava ativo.'}
+                $script:ChamadasLogon.Add($(if($null -ne $Senha){'gravar'}else{'remover'}))
+            }
+            $senha = New-Object Security.SecureString
+            $senha.AppendChar('x')
+            $falha = $false
+            try { Enable-SuporteLogon $registro 'conta' 'AD.EXEMPLO' $senha } catch { $falha = $true } finally { $senha.Dispose() }
+            [pscustomobject]@{Falha=$falha;Chamadas=($script:ChamadasLogon -join ',')}
+        } $chave
+        if ($falhar) {
+            Assert-True ($r.Falha -and $r.Chamadas -eq 'gravar,remover' -and $chave.Valores.AutoAdminLogon -eq '0' -and
+                $chave.Valores.DefaultUserName -eq 'anterior' -and -not $chave.Valores.ContainsKey('DefaultDomainName')) 'Falha deixou o login ativo ou perdeu o estado anterior.'
+        } else {
+            Assert-True (-not $r.Falha -and $r.Chamadas -eq 'gravar' -and $chave.Valores.AutoAdminLogon -eq '1' -and
+                $chave.Valores.DefaultDomainName -eq 'AD.EXEMPLO' -and -not $chave.Valores.ContainsKey('DefaultPassword')) 'Configuracao incorreta ou gravacao de senha legada.'
+        }
+    }
+}
+
+Test-Case autologon 'consulta omite senha e desativacao limpa configuracao na sessao elevada atual' {
+    $chave = New-FixtureWinlogon
+    $chave.Valores.AutoAdminLogon = '1'
+    $chave.Valores.DefaultPassword = 'senha-ficticia'
+    $chave.Valores.AutoLogonCount = '2'
+    $texto = & $module {
+        param($registro)
+        function Open-SuporteWinlogon { $registro }
+        function Test-SuporteAdmin { $true }
+        function Start-Process { throw 'Janela elevada extra indevida.' }
+        function Read-Host { 's' }
+        function Set-SuporteSegredoLogon { if($registro.Valores.AutoAdminLogon -ne '0'){throw 'Ordem insegura.'} }
+        function Write-Host { $args -join ' ' }
+        Get-SuporteResumoLogon
+        Request-SuporteOperacao autologondisable 'C:\Documentos'
+    } $chave
+    Assert-True (($texto -join ' ') -match 'Conta configurada: anterior' -and ($texto -join ' ') -match 'credencial removida' -and
+        ($texto -join ' ') -notmatch 'senha-ficticia|extra indevida' -and $chave.Valores.AutoAdminLogon -eq '0' -and
+        -not $chave.Valores.ContainsKey('DefaultPassword') -and -not $chave.Valores.ContainsKey('AutoLogonCount')) 'Falha na consulta, na desativacao ou no uso da janela atual.'
+}
+
+Test-Case filaimpressao 'identifica impressora com erro de fila e preserva filas normais' {
+    $texto = & $module {
+        param($arquivo)
+        function Get-Service { [pscustomobject]@{Status='Running'} }
+        function Get-Printer {
+            [pscustomobject]@{Name='Recepcao';PortName='USB001';PrinterStatus='Normal'}
+            [pscustomobject]@{Name='Sala de reuniao';PortName='IP_192.0.2.12';PrinterStatus='Normal'}
+            [pscustomobject]@{Name='Secretaria';PortName='USB002';PrinterStatus='Offline'}
+            [pscustomobject]@{Name='Somente proprietario';PortName='USB003';PrinterStatus='Normal'}
+        }
+        function Get-PrintJob {
+            param($PrinterObject)
+            switch ($PrinterObject.Name) {
+                'Recepcao' { [pscustomobject]@{JobStatus='Spooling'} }
+                'Sala de reuniao' { [pscustomobject]@{JobStatus='Printing, Blocked'} }
+                'Somente proprietario' { throw 'Acesso negado simulado.' }
+            }
+        }
+        & $arquivo -Id filaimpressao | Out-String
+    } $collector
+    Assert-True ($texto -match '\[IMPRESSAO PROBLEMA\] Impressora: Sala de reuniao' -and
+        $texto -match '\[IMPRESSAO PROBLEMA\] Impressora: Secretaria' -and
+        $texto -notmatch '\[IMPRESSAO PROBLEMA\] Impressora: Recepcao' -and
+        $texto -match '\[INDISPONIVEL\] Trabalhos da fila: Somente proprietario') 'A consulta marcou a fila errada ou ocultou a falha de acesso.'
+}
+
+Test-Case filaimpressao 'spooler parado informa a causa sem consultar filas' {
+    $texto = & $module {
+        param($arquivo)
+        function Get-Service { [pscustomobject]@{Status='Stopped'} }
+        function Get-Printer { throw 'Nao deveria enumerar filas.' }
+        & $arquivo -Id filaimpressao | Out-String
+    } $collector
+    Assert-True ($texto -match 'Spooler local: Stopped.*nao puderam ser avaliadas' -and $texto -notmatch 'Nao deveria') 'Spooler parado nao foi tratado corretamente.'
+}
+
+Test-Case seguranca 'Enter e zero voltam das escolhas de GPO sem executar operacoes' {
+    $chamadas = & $module {
+        $script:MenuQueue = New-Object 'System.Collections.Generic.Queue[string]'
+        foreach ($entrada in @('4','3','','3','0','2','','0','')) { $script:MenuQueue.Enqueue($entrada) }
+        function Read-Host { $script:MenuQueue.Dequeue() }
+        function Write-Host {}
+        function Write-SuporteTela {}
+        function Request-SuporteOperacao { throw 'A navegacao executou uma operacao.' }
+        function Request-SuporteExportar { throw 'A navegacao executou uma exportacao.' }
+        Start-SuporteMenu -ModuleRoot 'C:\Teste' -SemCores
+        $script:MenuQueue.Count
+    }
+    Assert-True ($chamadas -eq 0) 'As escolhas de voltar consumiram entradas incorretamente.'
+}
+
 # Navegacao real do menu com entradas controladas: cada opcao e acessada sem executar alteracoes.
 foreach($menuItem in Get-SuporteCatalogo){
     Test-Case $menuItem.Id 'navegacao do menu despacha a opcao correta' {
@@ -560,14 +1058,18 @@ foreach($menuItem in Get-SuporteCatalogo){
             $groups=@('Computador','Rede','Windows Update','GPO','Impressao','Relatorios e eventos','Reparos do Windows')
             $catalog=@(Get-SuporteCatalogo);$selected=$catalog | Where-Object Id -eq $id
             $groupIndex=[array]::IndexOf($groups,$selected.Grupo)+1
-            $peers=@($catalog | Where-Object Grupo -eq $selected.Grupo)
-            $optionIndex=[array]::IndexOf($peers,$selected)+1
+            $peers=@($catalog | Where-Object { $_.Grupo -eq $selected.Grupo -and -not $_.Pai })
+            $visivel=if($selected.Pai){$peers | Where-Object Id -eq $selected.Pai}else{$selected}
+            $optionIndex=[array]::IndexOf($peers,$visivel)+1
             $script:MenuQueue=New-Object 'System.Collections.Generic.Queue[string]'
             foreach($key in @([string]$groupIndex,[string]$optionIndex)){$script:MenuQueue.Enqueue($key)}
-            if($id -in @('gpupdateuser','gpupdatecomputer')){$script:MenuQueue.Enqueue('n')}
-            if($id -in @('sfc','dism','chkdsk')){$script:MenuQueue.Enqueue('1')}
+            if($id -in @('gpupdateuser','gpupdatecomputer','gphtml','sfc','dism','chkdsk','autologon')){$script:MenuQueue.Enqueue('1')}
             if($id -eq 'ping'){$script:MenuQueue.Enqueue('127.0.0.1')}
-            foreach($key in @('','0','0')){$script:MenuQueue.Enqueue($key)}
+            if($id -eq 'falhas'){$script:MenuQueue.Enqueue('1')}
+            if($id -eq 'codigofalha'){$script:MenuQueue.Enqueue('2');$script:MenuQueue.Enqueue('3');$script:MenuQueue.Enqueue('5')}
+            if($id -ne 'mapaocupacao'){$script:MenuQueue.Enqueue('')}
+            if($id -in 'falhas','codigofalha'){$script:MenuQueue.Enqueue('0')}
+            foreach($key in @('0','0')){$script:MenuQueue.Enqueue($key)}
             $script:MenuCalls=New-Object 'System.Collections.Generic.List[string]'
             function Read-Host { if($script:MenuQueue.Count -eq 0){throw 'Menu solicitou entrada inesperada.'};$script:MenuQueue.Dequeue() }
             function Clear-Host {}
@@ -575,6 +1077,7 @@ foreach($menuItem in Get-SuporteCatalogo){
             function Write-SuporteTela {}
             function Show-SuporteResultado {}
             function Show-SuporteMonitor { $script:MenuCalls.Add('monitor') }
+            function Show-SuporteMapaOcupacao { $script:MenuCalls.Add('mapaocupacao') }
             function Request-SuporteSalvar {}
             function Request-SuporteOperacao {param($Acao,$Documentos,[switch]$Forcar);$script:MenuCalls.Add($Acao)}
             function Request-SuporteExportar {param($Tipo,$Documentos);$script:MenuCalls.Add($Tipo)}
@@ -586,6 +1089,20 @@ foreach($menuItem in Get-SuporteCatalogo){
         $expected=switch($menuItem.Id){'gpcomputador'{'gpcomputerquery'};'gpupdateuser'{'gpuser'};'gpupdatecomputer'{'gpcomputer'};'sfc'{'sfcverify'};'dism'{'dismcheck'};'chkdsk'{'chkdskread'};'ultimo'{''};default{$menuItem.Id}}
         if($expected){Assert-True ($check.Calls -contains $expected) ('Despacho incorreto: '+($check.Calls -join ','))}
     }
+}
+
+Test-Case falhas '0 e Enter voltam no submenu de falhas sem consultar' {
+    $calls = & $module {
+        $script:MenuQueue = New-Object 'System.Collections.Generic.Queue[string]'
+        foreach($key in @('1','8','2','3','','2','0','0','8','','0','0')){$script:MenuQueue.Enqueue($key)}
+        $script:CallCount = 0
+        function Read-Host { $script:MenuQueue.Dequeue() }
+        function Write-Host {}; function Clear-Host {}; function Write-SuporteTela {}
+        function Invoke-SuporteConsulta { $script:CallCount++ }
+        Start-SuporteMenu -ModuleRoot 'C:\Teste' -SemCores
+        [pscustomobject]@{ Calls=$script:CallCount; Restantes=$script:MenuQueue.Count }
+    }
+    Assert-True ($calls.Calls -eq 0 -and $calls.Restantes -eq 0) 'O retorno executou uma consulta ou voltou para o menu errado.'
 }
 
 Test-Case seguranca 'menu ignora selecoes invalidas sem executar consulta' {
@@ -602,8 +1119,47 @@ Test-Case seguranca 'menu ignora selecoes invalidas sem executar consulta' {
     Assert-True ($calls -eq 0) 'Selecao invalida executou consulta.'
 }
 
+Test-Case falhas 'consulta por codigo separa as telas de familia, entrada e resultado' {
+    $telas = & $module {
+        $script:MenuQueue = New-Object 'System.Collections.Generic.Queue[string]'
+        $script:TelasTeste = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($key in @('1','8','2','3','5','0','0','0','0')) { $script:MenuQueue.Enqueue($key) }
+        function Read-Host { $script:MenuQueue.Dequeue() }
+        function Write-Host {}
+        function Write-SuporteTela { param($Titulo,[switch]$SemCores); $script:TelasTeste.Add('Tela: ' + $Titulo) }
+        function Invoke-SuporteConsulta { [pscustomobject]@{ Status='Concluido'; Texto='Simulado' } }
+        function Show-SuporteResultado { $script:TelasTeste.Add('Resultado') }
+        function Request-SuporteSalvar {}
+        Start-SuporteMenu -ModuleRoot 'C:\Teste' -SemCores
+        $script:TelasTeste.ToArray()
+    }
+    $esperado = @(
+        'Tela: Menu principal','Tela: Computador','Tela: Falhas recentes e codigos de erro',
+        'Tela: Consultar um codigo de erro','Tela: Consultar um codigo de erro | Win32',
+        'Tela: Consultar um codigo de erro | Win32','Resultado','Tela: Falhas recentes e codigos de erro',
+        'Tela: Computador','Tela: Menu principal'
+    )
+    Assert-True (($telas -join '|') -eq ($esperado -join '|')) 'A consulta acumulou etapas ou retornou a uma tela incorreta.'
+}
+
+Test-Case seguranca 'layout estreito preserva opcoes e rotulos sem depender das cores' {
+    $saida = & $module {
+        function Get-SuporteLargura { 24 }
+        function Write-Host { param($Object,$ForegroundColor); [pscustomobject]@{ Texto=[string]$Object; Cor=$ForegroundColor } }
+        function Read-Host { '0' }
+        Read-SuporteEscolha @('[1] Consultar o estado da imagem do Windows','[2] Reparar a imagem do Windows') -Titulo 'Opcoes DISM' -Alteracoes 2 -SemCores
+    }
+    $linhas = @($saida | Where-Object { $_ -isnot [string] })
+    Assert-True (@($linhas | Where-Object { $_.Texto.Length -gt 24 -or $_.Cor }).Count -eq 0) 'O menu excedeu a largura ou aplicou cores no modo sem cores.'
+    $texto = ($linhas.Texto -join ' ') -replace '\s+',' '
+    Assert-True ($texto -match 'Opcoes DISM' -and $texto -match '\[ALTERACAO\]' -and
+        $texto -match '\[0 ou Enter\] Voltar') 'Titulo, aviso de alteracao ou retorno foram perdidos.'
+    $cores = & $module { Get-SuporteCorConsole Yellow Black; Get-SuporteCorConsole Yellow White; Get-SuporteCorConsole Blue White }
+    Assert-True (($cores -join ',') -eq 'Yellow,DarkYellow,DarkBlue') 'A paleta nao se adaptou ao fundo claro.'
+}
+
 if ($IncluirConsultasReais) {
-    foreach ($query in $queries) {
+    foreach ($query in ($queries + 'bateria' + 'filaimpressao')) {
         Test-Case $query 'smoke real somente leitura, com limite de tempo' {
             $options=@{}
             $answer=Invoke-SuporteConsulta $query -Opcoes $options -TimeoutSeconds 40

@@ -1,34 +1,107 @@
+function Get-SuporteSmartValor {
+    param($Objeto,[string]$Nome)
+    if ($null -ne $Objeto) {
+        $propriedade = $Objeto.PSObject.Properties[$Nome]
+        if ($propriedade) { $propriedade.Value }
+    }
+}
+
+function Test-SuporteKingstonA400 {
+    param($Dados)
+    (Get-SuporteSmartValor $Dados 'model_name') -match '^KINGSTON +SA400(M8|S37)(120|240|480|960)G$'
+}
+
+function Get-SuporteSmartDesgaste {
+    param($Dados,$Nvme,$Atributos)
+    if ((Get-SuporteSmartValor $Dados 'rotation_rate') -gt 0) { return }
+    if (Test-SuporteKingstonA400 $Dados) {
+        $firmware = Get-SuporteSmartValor $Dados 'firmware_version'
+        $atributo = $Atributos | Where-Object id -eq 231 | Select-Object -First 1
+        # No A400 SBFK, o E7 bruto e a resistencia restante. O smartctl 7.5 calcula o agregado pelo valor normalizado.
+        $restante = if ($firmware -like 'SBFK*') {
+            Get-SuporteSmartValor (Get-SuporteSmartValor $atributo 'raw') 'value'
+        } elseif ($firmware -like '03070009*') {
+            Get-SuporteSmartValor $atributo 'value'
+        }
+        if ("$restante" -match '^\d{1,3}$' -and [int]$restante -le 100) { return (100 - [int]$restante) }
+        return
+    }
+    $valor = Get-SuporteSmartValor $Nvme 'percentage_used'
+    if ($null -eq $valor) {
+        $valor = Get-SuporteSmartValor (Get-SuporteSmartValor $Dados 'endurance_used') 'current_percent'
+    }
+    if ($null -ne $valor -and "$valor" -match '^\d{1,3}$' -and [int]$valor -le 255) { return [int]$valor }
+
+    # Crucial MX500: CAh e percentual restante na coluna normalizada, usado na coluna bruta.
+    # O modelo e a concordancia das duas colunas evitam generalizar a regra para outros SSDs.
+    if ((Get-SuporteSmartValor $Dados 'model_name') -match '^CT(250|500|[124]000)MX500SSD[14]$') {
+        $atributo = $Atributos | Where-Object { $_.id -eq 202 } | Select-Object -First 1
+        $restante = Get-SuporteSmartValor $atributo 'value'
+        $usado = Get-SuporteSmartValor (Get-SuporteSmartValor $atributo 'raw') 'value'
+        if ("$restante" -match '^\d{1,3}$' -and "$usado" -match '^\d{1,3}$' -and
+            [int]$usado -le 255 -and [int]$restante -eq [Math]::Max(100 - [int]$usado,0)) { return [int]$usado }
+    }
+}
+
 function Get-SuporteSmartClassificacao {
-    param([Parameter(Mandatory)]$Dados)
-    $reasons=New-Object 'System.Collections.Generic.List[string]'
-    $state='Inconclusivo'
-    $status=$Dados.PSObject.Properties['smart_status']
-    if ($status -and $status.Value.PSObject.Properties['passed']) {
-        if ($status.Value.passed -eq $true) { $state='Sem alertas detectados'; $reasons.Add('SMART global aprovado pelo dispositivo.') }
-        elseif ($status.Value.passed -eq $false) { $state='Critico/degradado'; $reasons.Add('O dispositivo informa falha na avaliacao SMART.') }
-    }
-    $nvme=$Dados.PSObject.Properties['nvme_smart_health_information_log']
-    if ($nvme) {
-        $log=$nvme.Value
-        if ($log.PSObject.Properties['critical_warning'] -and [int]$log.critical_warning -ne 0) { $state='Critico/degradado'; $reasons.Add('NVMe informa alerta critico: '+$log.critical_warning) }
-        if ($log.PSObject.Properties['percentage_used'] -and [double]$log.percentage_used -ge 100) {
-            if ($state -ne 'Critico/degradado') { $state='Atencao' }; $reasons.Add('Limite estimado de desgaste NVMe atingido; nao e percentual de vida restante.')
+    param($Dados,[int]$Codigo)
+    $estado = 'Inconclusivo'
+    $motivo = 'Indicadores SMART insuficientes.'
+    $smart = Get-SuporteSmartValor $Dados 'smart_status'
+    $status = Get-SuporteSmartValor $smart 'passed'
+    $nvme = Get-SuporteSmartValor $Dados 'nvme_smart_health_information_log'
+    $ata = @(Get-SuporteSmartValor (Get-SuporteSmartValor $Dados 'ata_smart_attributes') 'table')
+    $desgaste = Get-SuporteSmartDesgaste $Dados $nvme $ata
+    # O smartctl marca passed=false para qualquer aviso NVMe, inclusive temperatura.
+    $statusNvme = Get-SuporteSmartValor $smart 'nvme'
+    $protocolo = Get-SuporteSmartValor (Get-SuporteSmartValor $Dados 'device') 'protocol'
+    $ehNvme = $null -ne $nvme -or $null -ne $statusNvme -or $protocolo -eq 'NVMe'
+    $avisoNvme = [int](Get-SuporteSmartValor $nvme 'critical_warning') -bor [int](Get-SuporteSmartValor $statusNvme 'value')
+    $smartFalhou = $status -is [bool] -and -not $status
+    $setores = $ata | Where-Object {
+        (($_.id -eq 5 -and $_.name -eq 'Reallocated_Sector_Ct') -or
+         ($_.id -eq 197 -and $_.name -eq 'Current_Pending_Sector') -or
+         ($_.id -eq 198 -and $_.name -eq 'Offline_Uncorrectable')) -and
+        (Get-SuporteSmartValor (Get-SuporteSmartValor $_ 'raw') 'value') -gt 0
+    } | Select-Object -First 1
+
+    # Bits 2, 3 e 5 indicam perda de confiabilidade ou modo somente leitura.
+    if ($avisoNvme -band 0x2C) {
+        $estado = 'Critico/degradado'
+        $motivo = if ($avisoNvme -band 8) { 'A midia do SSD NVMe entrou em modo somente leitura.' }
+            else { 'O SSD NVMe informa perda de confiabilidade.' }
+    } elseif (-not $ehNvme -and ($smartFalhou -or ($protocolo -eq 'ATA' -and ($Codigo -band 8)))) {
+        $estado = 'Critico/degradado'
+        $motivo = 'O disco informa falha SMART.'
+    } elseif ($avisoNvme -band 1) {
+        $estado = 'Atencao'
+        $motivo = 'A reserva do SSD NVMe caiu abaixo do limite informado pelo disco.'
+    } elseif ((Get-SuporteSmartValor $nvme 'media_errors') -gt 0) {
+        $estado = 'Atencao'
+        $motivo = 'O SSD NVMe registra erros de integridade da midia.'
+    } elseif ($avisoNvme -band 2) {
+        $estado = 'Atencao'
+        $motivo = 'A temperatura do SSD NVMe esta fora do limite informado pelo disco.'
+    } elseif ($avisoNvme -or ($ehNvme -and $smartFalhou)) {
+        $estado = 'Atencao'
+        $motivo = 'O SSD NVMe informa outro alerta de saude.'
+    } elseif ($setores) {
+        $estado = 'Atencao'
+        $motivo = switch ($setores.id) {
+            197 { 'O disco tem setores pendentes.' }
+            198 { 'O disco tem setores incorrigiveis.' }
+            5 { 'O disco tem setores realocados.' }
         }
-        if ($log.PSObject.Properties['media_errors'] -and [double]$log.media_errors -gt 0) {
-            if ($state -ne 'Critico/degradado') { $state='Atencao' }; $reasons.Add('Erros de integridade de midia acumulados; verificar evolucao.')
-        }
+    } elseif ($protocolo -eq 'ATA' -and ($Codigo -band 144)) {
+        $estado = 'Atencao'
+        $motivo = 'O disco tem atributo SMART fora do limite ou registro de autoteste com erro.'
+    } elseif ($Codigo -band 4) {
+        $motivo = 'Leitura SMART parcial; indicadores insuficientes para concluir.'
+    } elseif ($status -eq $true) {
+        $estado = 'Sem alertas detectados'
+        $motivo = 'Nenhum alerta nos indicadores verificados.'
     }
-    $ata=$Dados.PSObject.Properties['ata_smart_attributes']
-    if ($ata -and $ata.Value.PSObject.Properties['table']) {
-        foreach ($attr in $ata.Value.table) {
-            if ($attr.id -in @(5,197,198) -and $attr.PSObject.Properties['raw'] -and $attr.raw.PSObject.Properties['value'] -and [double]$attr.raw.value -gt 0) {
-                if ($state -ne 'Critico/degradado') { $state='Atencao' }
-                $reasons.Add('Atributo ATA '+$attr.id+' ('+$attr.name+'): '+$attr.raw.value+'. Avaliar conforme modelo/fabricante.')
-            }
-        }
-    }
-    if ($reasons.Count -eq 0) { $reasons.Add('SMART completo nao disponivel. Nao presumir saude normal.') }
-    [pscustomobject]@{Estado=$state;Motivos=($reasons -join ' ')}
+    [pscustomobject]@{Estado=$estado;Motivos=$motivo;Desgaste=$desgaste}
 }
 
 function Invoke-SuporteSmartJson {
@@ -55,25 +128,67 @@ function Invoke-SuporteSmartJson {
         if (-not $process.WaitForExit($TimeoutSeconds*1000)) { $process.Kill(); throw 'Consulta SMART excedeu o limite; resultado inconclusivo.' }
         $process.WaitForExit()
         $data=$stdout.Result | ConvertFrom-Json -ErrorAction Stop
-        # Bits 0..2 indicam erro de comando/abertura/leitura; bits altos podem representar alertas de saude.
-        if (($process.ExitCode -band 7) -ne 0) { throw ('Leitura SMART indisponivel ou incompleta (codigo '+$process.ExitCode+'). Pode requerer administrador ou outra controladora.') }
-        $data
+        # O bit 2 pode coexistir com dados validos e alertas. Os bits 0 e 1 impedem a leitura do disco.
+        if ($process.ExitCode -band 3) { throw 'SMART indisponivel. O disco pode estar em repouso ou exigir acesso administrativo.' }
+        [pscustomobject]@{Dados=$data;Codigo=$process.ExitCode}
     } finally { $process.Dispose() }
 }
 
 function Get-SuporteSmartResumo {
-    $scan=Invoke-SuporteSmartJson @('--scan','-j') 5
-    if (-not $scan.PSObject.Properties['devices'] -or @($scan.devices).Count -eq 0) { throw 'Nenhum dispositivo SMART detectado.' }
-    $devices=@($scan.devices)
-    if ($devices.Count -gt 4) { 'Consulta rapida limitada aos primeiros quatro dispositivos.' }
-    foreach ($device in ($devices | Select-Object -First 4)) {
+    $discos = @(Get-Disk -ErrorAction Stop | Where-Object { $_.BusType -in @('ATA','SATA','NVMe','SAS') } | Sort-Object Number)
+    if ($discos.Count -eq 0) { 'Nenhum disco interno compativel identificado.'; return }
+    if ($discos.Count -gt 4) { '[INDISPONIVEL] Consulta limitada aos primeiros quatro discos internos.' }
+    foreach ($disco in ($discos | Select-Object -First 4)) {
+        $classe = Get-SuporteSmartClassificacao
+        $parcial = $false
+        $rotacao = $null
+        $dados = $null
         try {
-            $argsList=@('-a','-j','-n','standby','-d',[string]$device.type,[string]$device.name)
-            $data=Invoke-SuporteSmartJson $argsList 6
-            $class=Get-SuporteSmartClassificacao $data
-            $model='Nao informado'; if ($data.PSObject.Properties['model_name']) { $model=$data.model_name }
-            $temp='Indisponivel'; if ($data.PSObject.Properties['temperature'] -and $data.temperature.PSObject.Properties['current']) { $temp=$data.temperature.current }
-            [pscustomobject]@{Dispositivo=$device.name;Modelo=$model;Resultado=$class.Estado;Motivo=$class.Motivos;Temperatura_C=$temp;Recomendacao=$(if($class.Estado -eq 'Critico/degradado'){'Priorizar backup e avaliar substituicao.'}elseif($class.Estado -eq 'Atencao'){'Conferir backup e avaliar indicadores e evolucao.'}else{'Leitura pontual; nao garante ausencia de defeito.'})} | Format-List | Out-String -Width 140
-        } catch { '[INDISPONIVEL] '+$device.name+': '+$_.Exception.Message }
+            if ($disco.Number -gt 255) { throw 'Numero de disco fora da faixa suportada pelo smartctl.' }
+            $argumentos = @('-a','-j','-n','standby')
+            if ($disco.BusType -eq 'NVMe') { $argumentos += @('-d','nvme') }
+            $leitura = Invoke-SuporteSmartJson ($argumentos + ('/dev/pd' + [uint32]$disco.Number))
+            $dados = $leitura.Dados
+            $classe = Get-SuporteSmartClassificacao $dados $leitura.Codigo
+            $parcial = ($leitura.Codigo -band 4) -ne 0
+            $rotacao = Get-SuporteSmartValor $dados 'rotation_rate'
+        } catch {
+            $classe.Motivos = $_.Exception.Message
+        }
+        $contadores = $null
+        try { $contadores = Get-StorageReliabilityCounter -Disk $disco -ErrorAction Stop } catch {}
+        $desgaste = $classe.Desgaste
+        # O Windows pode retornar zero em Wear mesmo para HDDs. Use esse contador so em SSD confirmado.
+        if ($null -eq $desgaste -and -not (Test-SuporteKingstonA400 $dados) -and
+            ($disco.BusType -eq 'NVMe' -or ($null -ne $rotacao -and $rotacao -eq 0))) {
+            $desgaste = Get-SuporteSmartValor $contadores 'Wear'
+        }
+        $nativo = Get-SuporteDiscoClassificacao -HealthStatus ([string]$disco.HealthStatus) `
+            -ReadErrorsUncorrected (Get-SuporteSmartValor $contadores 'ReadErrorsUncorrected') `
+            -WriteErrorsUncorrected (Get-SuporteSmartValor $contadores 'WriteErrorsUncorrected')
+        if ($classe.Estado -ne 'Critico/degradado' -and ($nativo.Estado -eq 'Critico/degradado' -or
+            ($nativo.Estado -eq 'Atencao' -and $classe.Estado -ne 'Atencao'))) {
+            $classe.Estado = $nativo.Estado
+            $classe.Motivos = if ($nativo.Estado -eq 'Critico/degradado') { 'O Windows informa que o disco esta degradado.' }
+                else { 'Os indicadores de armazenamento do Windows sinalizam atencao.' }
+        }
+        if ($desgaste -ge 80 -and $classe.Estado -in @('Sem alertas detectados','Inconclusivo')) {
+            $classe.Estado = 'Atencao'
+            $classe.Motivos = if ($desgaste -ge 100) { 'O SSD atingiu o limite de desgaste estimado.' }
+                else { 'Desgaste elevado. Planeje uma troca preventiva.' }
+        }
+        $resultado = switch ($classe.Estado) {
+            'Critico/degradado' { 'Troca recomendada'; break }
+            'Atencao' { 'Atencao - avaliar troca'; break }
+            default { $classe.Estado }
+        }
+        $resumo = 'Disco {0} ({1}): {2}. {3}' -f $disco.Number,$disco.FriendlyName,$resultado,$classe.Motivos
+        if ($classe.Estado -eq 'Inconclusivo') { $resumo = '[INDISPONIVEL] ' + $resumo }
+        if ($classe.Estado -eq 'Critico/degradado') { $resumo += ' Priorize o backup.' }
+        if ($null -ne $desgaste) {
+            $resumo += ' Desgaste estimado: {0}% usado. Resistencia restante: {1}%.' -f $desgaste,[Math]::Max(0,100 - $desgaste)
+        }
+        if ($parcial -and $classe.Estado -ne 'Inconclusivo') { $resumo += ' Leitura SMART parcial.' }
+        $resumo
     }
 }

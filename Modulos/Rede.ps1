@@ -141,17 +141,17 @@ function Invoke-SuporteConfiguracaoIPv4 {
     param([ValidateSet('Dhcp','Estatico')][string]$Modo)
     $adaptadores = @(Get-NetAdapter -Physical -ErrorAction Stop | Sort-Object ifIndex)
     if (-not $adaptadores.Count) { throw 'Nenhum adaptador fisico disponivel.' }
-    Write-Host "
-  Escolha o adaptador de rede
-  -------------------------"
+    Write-SuporteLinha '  Escolha o adaptador de rede' -SemCores
+    Write-Host ''
     $enderecosAtuais = @(Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue)
     for ($i=0; $i -lt $adaptadores.Count; $i++) {
         $adaptador = $adaptadores[$i]
         $status = switch ($adaptador.Status) { 'Up' {'Conectado'} 'Disconnected' {'Desconectado'} 'Disabled' {'Desativado'} default {$adaptador.Status} }
         $ipv4 = ($enderecosAtuais | Where-Object InterfaceIndex -eq $adaptador.ifIndex | ForEach-Object IPAddress) -join ', '
         if (-not $ipv4) { $ipv4 = 'sem IPv4' }
-        Write-Host ('  [{0}] {1} | {2} | {3}' -f ($i+1),$adaptador.Name,$status,$ipv4)
+        Write-SuporteLinha ('  [{0}] {1} | {2} | {3}' -f ($i+1),$adaptador.Name,$status,$ipv4) -SemCores
     }
+    Write-Host ''
     $escolha = 0
     $entrada = Read-Host 'Adaptador (Enter ou 0 volta)'
     if (-not $entrada -or $entrada -eq '0') { return 'Selecao cancelada.' }
@@ -166,15 +166,18 @@ function Invoke-SuporteConfiguracaoIPv4 {
     Write-Host 'A mudanca pode interromper a rede e o atendimento remoto.'
     if ($Modo -eq 'Estatico') {
         Write-Host ("`n  Configuracao manual de " + $adaptador.Name)
-        $ip = ([string](Read-Host '  Endereco IPv4 (ex. 192.0.2.25, Enter volta)')).Trim()
-        if (-not $ip) { return 'Selecao cancelada.' }
-        $prefixo = ([string](Read-Host '  Mascara de sub-rede (ex. 255.255.255.0 ou /24)')).Trim()
-        $gateway = ([string](Read-Host '  Gateway padrao (Enter se nao houver)')).Trim()
+        $ip = ([string](Read-Host '  Endereco IPv4 (0 ou Enter volta)')).Trim()
+        if ($ip -in @('','0')) { return 'Selecao cancelada.' }
+        $prefixo = ([string](Read-Host '  Mascara ou prefixo (0 ou Enter volta)')).Trim()
+        if ($prefixo -in @('','0')) { return 'Selecao cancelada.' }
+        $gateway = ([string](Read-Host '  Gateway (0 volta, Enter deixa vazio)')).Trim()
+        if ($gateway -eq '0') { return 'Selecao cancelada.' }
         $config = Get-SuporteIPv4Estatico $ip $prefixo $gateway
-        $dns1 = ([string](Read-Host '  DNS primario IPv4 (Enter volta)')).Trim()
-        if (-not $dns1) { return 'Selecao cancelada.' }
+        $dns1 = ([string](Read-Host '  DNS primario IPv4 (0 ou Enter volta)')).Trim()
+        if ($dns1 -in @('','0')) { return 'Selecao cancelada.' }
         $dns1 = (ConvertTo-SuporteIPv4 $dns1).ToString()
-        $dns2 = ([string](Read-Host '  DNS secundario IPv4 (Enter se nao houver)')).Trim()
+        $dns2 = ([string](Read-Host '  DNS secundario (0 volta, Enter deixa vazio)')).Trim()
+        if ($dns2 -eq '0') { return 'Selecao cancelada.' }
         if ($dns2) {
             $dns2 = (ConvertTo-SuporteIPv4 $dns2).ToString()
             if ($dns2 -eq $dns1) { throw 'Use enderecos diferentes para o DNS primario e secundario.' }

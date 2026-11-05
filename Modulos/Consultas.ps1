@@ -2,11 +2,15 @@ param([Parameter(Mandatory)][string]$Id, [hashtable]$Opcoes=@{})
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'Recursos.ps1')
 . (Join-Path $PSScriptRoot 'Rede.ps1')
+. (Join-Path $PSScriptRoot 'Discos.ps1')
+. (Join-Path $PSScriptRoot 'Logon.ps1')
+. (Join-Path $PSScriptRoot 'Falhas.ps1')
+$largura = if ($Opcoes.ContainsKey('Largura')) { [Math]::Max(40,[int]$Opcoes.Largura) } else { 79 }
 
 function Format-Section {
     param([string]$Title,[scriptblock]$Query)
     "`r`n--- $Title ---"
-    try { & $Query | Out-String -Width 160 | ForEach-Object { $_.TrimEnd() } }
+    try { & $Query | Out-String -Width $largura | ForEach-Object { $_.TrimEnd() } }
     catch {
         if ($_.Exception -is [UnauthorizedAccessException] -or $_.Exception.Message -match 'denied|negado') { '[ACESSO NEGADO] ' + $Title }
         elseif ($_.FullyQualifiedErrorId -match 'NoMatchingEventsFound') { 'Nenhum evento correspondente no periodo consultado.' }
@@ -36,6 +40,40 @@ function Get-RecentEvents {
         Select-Object TimeCreated,Id,LevelDisplayName,ProviderName,@{n='Mensagem';e={ if ($_.Message) { ($_.Message -replace '\s+',' ').Substring(0,[Math]::Min(700,($_.Message -replace '\s+',' ').Length)) } }} | Format-List
 }
 
+function Get-SuporteFilasImpressao {
+    $spooler = Get-Service -Name Spooler -ErrorAction Stop
+    if ($spooler.Status -ne 'Running') {
+        '[IMPRESSAO PROBLEMA] Spooler local: ' + $spooler.Status + '. As filas nao puderam ser avaliadas.'
+        return
+    }
+    'Spooler local: em execucao.'
+    $impressoras = @(Get-Printer -ErrorAction Stop | Sort-Object Name)
+    if (-not $impressoras.Count) { 'Nenhuma fila de impressao visivel nesta sessao.'; return }
+    foreach ($impressora in $impressoras) {
+        ''
+        $estado = [string]$impressora.PrinterStatus
+        $problema = $estado -match '\b(Error|Offline|PaperJam|PaperOut|PaperProblem|OutputBinFull|NotAvailable|NoToner|UserIntervention|DoorOpen|OutOfMemory)\b'
+        $atencao = $estado -match '\b(Paused|TonerLow|ManualFeed)\b'
+        $trabalhos = @()
+        $leituraFila = $true
+        try { $trabalhos = @(Get-PrintJob -PrinterObject $impressora -ErrorAction Stop) }
+        catch { $leituraFila = $false }
+        $falhas = @($trabalhos | Where-Object { [string]$_.JobStatus -match '\b(Error|Offline|PaperOut|Blocked|BlockedDeviceQueue|UserIntervention)\b' })
+        $pausados = @($trabalhos | Where-Object { [string]$_.JobStatus -match '\bPaused\b' })
+        $rotulo = if ($problema -or $falhas.Count) { '[IMPRESSAO PROBLEMA] ' }
+            elseif ($atencao -or $pausados.Count) { '[IMPRESSAO ATENCAO] ' }
+            else { '' }
+        $rotulo + 'Impressora: ' + $impressora.Name
+        '  Porta: ' + $impressora.PortName
+        '  Estado informado pelo Windows: ' + $(if ($estado) { $estado } else { 'Indisponivel' })
+        if ($leituraFila) {
+            '  Trabalhos na fila: {0} | Com problema: {1} | Pausados: {2}' -f $trabalhos.Count,$falhas.Count,$pausados.Count
+        } else {
+            '[INDISPONIVEL] Trabalhos da fila: ' + $impressora.Name
+        }
+    }
+}
+
 switch ($Id) {
     'sistema' {
         Format-Section 'Computador' { Get-CimInstance Win32_ComputerSystem -OperationTimeoutSec 5 | Select-Object Name,Manufacturer,Model,Domain,PartOfDomain,@{n='RAM_GB';e={[Math]::Round($_.TotalPhysicalMemory/1GB,1)}} | Format-List }
@@ -49,55 +87,65 @@ switch ($Id) {
     'desempenho' {
         Format-Section 'Resumo de uso' { (Get-SuporteMemoria).Resumo }
         Format-Section 'CPU - amostra atual' { 'CPU: {0}%' -f (Get-SuporteCpuPercentual) }
-        Format-Section '5 processos com maior uso de memoria' { Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 5 @{n='Processo';e={$_.ProcessName}},Id,@{n='RAM_MB';e={[Math]::Round($_.WorkingSet64/1MB,1)}} | Format-Table -AutoSize }
+        Format-Section '5 processos com maior uso de memoria' { Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 5 @{n='Processo';e={$_.ProcessName}},Id,@{n='RAM_MB';e={[Math]::Round($_.WorkingSet64/1MB,1)}} | Format-Table -AutoSize -Wrap }
         'Leitura pontual. Nenhum processo e encerrado.'
     }
     'discos' {
         Format-Section 'Ocupacao por volume local' {
-            Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' -OperationTimeoutSec 5 |
-                Select-Object DeviceID,FileSystem,
-                    @{n='Total_GiB';e={if ($null -ne $_.Size) {[Math]::Round($_.Size/1GB,1)}}},
-                    @{n='Usado_GiB';e={if ($_.Size -gt 0 -and $null -ne $_.FreeSpace) {[Math]::Round(($_.Size-$_.FreeSpace)/1GB,1)}}},
-                    @{n='Livre_GiB';e={if ($null -ne $_.FreeSpace) {[Math]::Round($_.FreeSpace/1GB,1)}}},
-                    @{n='Uso_%';e={if ($_.Size -gt 0 -and $null -ne $_.FreeSpace) {[Math]::Round(100*($_.Size-$_.FreeSpace)/$_.Size)}}},
-                    @{n='Ocupacao';e={if ($_.Size -gt 0 -and $null -ne $_.FreeSpace) {
-                        $cheios = [int][Math]::Max(0,[Math]::Min(10,[Math]::Round(10*($_.Size-$_.FreeSpace)/$_.Size)))
-                        '[' + ('#' * $cheios) + ('-' * (10-$cheios)) + ']'
-                    }}} |
-                Format-Table -AutoSize
-        }
-        Format-Section 'SMART/NVMe - consulta rapida' { & (Get-Module SuporteTI) { Get-SuporteSmartResumo } }
-        Format-Section 'Saude nativa dos dispositivos' {
-            $disks=@(Get-PhysicalDisk -ErrorAction Stop)
-            if ($disks.Count -eq 0) { throw 'Nenhum dispositivo visivel pelo provedor.' }
-            foreach ($disk in $disks) {
-                $counter=$null; $limitation=''
-                try { $counter=$disk | Get-StorageReliabilityCounter -ErrorAction Stop } catch { $limitation='Contadores indisponiveis: '+$_.Exception.Message }
-                $wear=$null; $read=$null; $write=$null
-                if ($counter) { $wear=$counter.Wear; $read=$counter.ReadErrorsUncorrected; $write=$counter.WriteErrorsUncorrected }
-                $class=Get-SuporteDiscoClassificacao -HealthStatus ([string]$disk.HealthStatus) -Wear $wear -ReadErrorsUncorrected $read -WriteErrorsUncorrected $write
-                [pscustomobject]@{Disco=$disk.DeviceId;Modelo=$disk.FriendlyName;Tipo=$disk.MediaType;Resultado=$class.Estado;Motivo=$class.Motivos;Temperatura_C=$(if($counter){$counter.Temperature}else{'Indisponivel'});Desgaste_percentual=$wear;Horas_ligado=$(if($counter){$counter.PowerOnHours}else{$null});Limitacoes=($class.Limite+' '+$limitation)} | Format-List
+            foreach ($volume in (Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' -OperationTimeoutSec 5 | Sort-Object DeviceID)) {
+                if ($volume.Size -le 0 -or $null -eq $volume.FreeSpace) {
+                    '[INDISPONIVEL] Volume ' + $volume.DeviceID + ': ocupacao indisponivel.'
+                    continue
+                }
+                $usado = $volume.Size - $volume.FreeSpace
+                $percentual = [Math]::Round(100*$usado/$volume.Size)
+                $cheios = [int][Math]::Max(0,[Math]::Min(10,[Math]::Round($percentual/10)))
+                $barra = '[' + ('#' * $cheios) + ('-' * (10-$cheios)) + ']'
+                'Volume {0} ({1})  {2} {3}% usado' -f $volume.DeviceID,$volume.FileSystem,$barra,$percentual
+                '  Total: {0:0.#} GiB | Usado: {1:0.#} GiB | Livre: {2:0.#} GiB' -f ($volume.Size/1GB),($usado/1GB),($volume.FreeSpace/1GB)
             }
         }
+        Format-Section 'Saude dos discos internos' { Get-SuporteSmartResumo }
     }
+    'bateria' {
+        Format-Section 'Notebook - saude da bateria' {
+            if ((Test-SuporteNotebook) -eq $false) {
+                'Consulta nao se aplica a desktop ou computador sem bateria interna detectada.'
+                return
+            }
+            $relatorio = Join-Path ([IO.Path]::GetTempPath()) ('SuporteTI-' + [guid]::NewGuid().ToString('N') + '.xml')
+            try {
+                Invoke-LocalNative 'powercfg.exe' ('/batteryreport /xml /output "' + $relatorio + '"') | Out-Null
+                Get-SuporteBateriaResumo $relatorio
+            } finally { [IO.File]::Delete($relatorio) }
+        }
+    }
+    'filaimpressao' { Format-Section 'Diagnostico das filas de impressao' { Get-SuporteFilasImpressao } }
+    'autologon' { Format-Section 'Login automatico desta estacao' { Get-SuporteResumoLogon } }
     'dispositivos' {
         Format-Section 'Dispositivos com codigo de problema' {
             $devices=@(Get-CimInstance Win32_PnPEntity -Filter 'ConfigManagerErrorCode <> 0' -OperationTimeoutSec 8 |
                 Where-Object { $_.ConfigManagerErrorCode -ne 24 -or $_.Present -ne $false })
             if ($devices.Count -eq 0) { 'Nenhum problema listado em dispositivos presentes ou de presenca desconhecida.' }
-            $devices | Select-Object Name,PNPClass,ConfigManagerErrorCode,Status | Format-Table -AutoSize
+            $devices | Select-Object Name,PNPClass,@{n='Codigo';e={$_.ConfigManagerErrorCode}},Status | Format-Table -AutoSize -Wrap
             if ($devices | Where-Object ConfigManagerErrorCode -eq 24) { 'Codigo 24: o Windows indica ausencia, mau funcionamento ou driver incompleto.' }
         }
     }
-    'servicos' { Format-Section 'Servicos locais (inclui parados)' { Get-Service | Select-Object Name,DisplayName,Status | Sort-Object Name | Format-Table -AutoSize } }
+    'servicos' { Format-Section 'Servicos locais (inclui parados)' { Get-Service | Select-Object Name,DisplayName,Status | Sort-Object Name | Format-Table -AutoSize -Wrap } }
     'programas' {
         Format-Section 'Programas registrados (sem Win32_Product)' {
             $paths=@('HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*','HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*','HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*')
-            Get-ItemProperty -Path $paths -ErrorAction SilentlyContinue | Where-Object DisplayName | Select-Object DisplayName,DisplayVersion,Publisher | Sort-Object DisplayName,DisplayVersion -Unique | Format-Table -AutoSize
+            Get-ItemProperty -Path $paths -ErrorAction SilentlyContinue | Where-Object DisplayName | Select-Object DisplayName,DisplayVersion,Publisher | Sort-Object DisplayName,DisplayVersion -Unique | Format-Table -AutoSize -Wrap
             'Inventario de programas registrados. Pode nao incluir aplicativos portateis e todos os pacotes da Store.'
         }
     }
-    {$_ -in @('falhas','eventos')} {
+    'falhas' {
+        Format-Section 'Diagnostico de travamentos e reinicios (24h)' { Get-SuporteDiagnosticoFalhas }
+    }
+    'codigofalha' {
+        Format-Section 'Explicacao do codigo de erro' { Get-SuporteExplicacaoCodigo $Opcoes['Familia'] $Opcoes['Codigo'] }
+    }
+    'eventos' {
         foreach ($log in @('System','Application')) {
             "Comando: Get-WinEvent -FilterHashtable @{LogName='$log'; StartTime=(Get-Date).AddHours(-24); Level=1,2,3} -MaxEvents 30"
             Format-Section "$log - ate 30 avisos/erros, ultimas 24h" { Get-RecentEvents $log }
@@ -121,7 +169,7 @@ switch ($Id) {
         }
     }
     'update' {
-        Format-Section 'Servicos de atualizacao' { Get-Service -Name wuauserv,bits,cryptsvc -ErrorAction Stop | Select-Object Name,Status,StartType | Format-Table -AutoSize }
+        Format-Section 'Servicos de atualizacao' { Get-Service -Name wuauserv,bits,cryptsvc -ErrorAction Stop | Select-Object Name,Status,StartType | Format-Table -AutoSize -Wrap }
         Format-Section 'Politicas de atualizacao' {
             foreach ($path in @('HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate','HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU')) {
                 if (Test-Path $path) { Get-ItemProperty $path | Select-Object WUServer,WUStatusServer,UseWUServer,DoNotConnectToWindowsUpdateInternetLocations,NoAutoUpdate | Format-List }

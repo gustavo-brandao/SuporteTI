@@ -5,19 +5,24 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot 'Rede.ps1')
 . (Join-Path $PSScriptRoot 'Manutencao.ps1')
 . (Join-Path $PSScriptRoot 'Perfis.ps1')
+. (Join-Path $PSScriptRoot 'Logon.ps1')
 
 function Get-SuporteCatalogo {
-    @(
+    $catalogo = @(
         @{ Id='sistema'; Grupo='Computador'; Nome='Informacoes do computador' }
         @{ Id='desempenho'; Grupo='Computador'; Nome='CPU, memoria e processos' }
         @{ Id='monitor'; Grupo='Computador'; Nome='Monitor de CPU e RAM ao vivo'; Especial=$true }
-        @{ Id='discos'; Grupo='Computador'; Nome='Uso e saude dos discos (SMART e nativo)' }
+        @{ Id='discos'; Grupo='Computador'; Nome='Uso e saude dos discos internos' }
         @{ Id='diskhealth'; Grupo='Computador'; Nome='Saude dos discos com acesso administrativo'; Admin=$true; Especial=$true }
         @{ Id='dispositivos'; Grupo='Computador'; Nome='Dispositivos e drivers com problemas' }
         @{ Id='servicos'; Grupo='Computador'; Nome='Estado dos servicos' }
         @{ Id='programas'; Grupo='Computador'; Nome='Programas instalados' }
-        @{ Id='falhas'; Grupo='Computador'; Nome='Falhas recentes (ultimas 24 horas)' }
+        @{ Id='falhas'; Grupo='Computador'; Nome='Falhas recentes e codigos de erro' }
+        @{ Id='codigofalha'; Grupo='Computador'; Nome='Consultar codigo de erro do Windows'; Pai='falhas' }
         @{ Id='chromecache'; Grupo='Computador'; Nome='Limpar cache de paginas do Google Chrome'; Especial=$true }
+        @{ Id='mapaocupacao'; Grupo='Computador'; Nome='Mapa de ocupacao do disco'; Especial=$true }
+        @{ Id='autologon'; Grupo='Computador'; Nome='Login automatico (Autologon)'; Especial=$true }
+        @{ Id='bateria'; Grupo='Computador'; Nome='Saude da bateria' }
         @{ Id='rede'; Grupo='Rede'; Nome='Configuracao de rede (ipconfig /all)' }
         @{ Id='dominio'; Grupo='Rede'; Nome='Dominio' }
         @{ Id='ping'; Grupo='Rede'; Nome='Ping em site ou endereco IP' }
@@ -31,6 +36,7 @@ function Get-SuporteCatalogo {
         @{ Id='gphtml'; Grupo='GPO'; Nome='Exportar gpresult em HTML (escolher escopo)'; Especial=$true }
         @{ Id='gpupdateuser'; Grupo='GPO'; Nome='Atualizar politicas do usuario'; Especial=$true }
         @{ Id='gpupdatecomputer'; Grupo='GPO'; Nome='Atualizar politicas do computador'; Especial=$true; Admin=$true }
+        @{ Id='filaimpressao'; Grupo='Impressao'; Nome='Diagnosticar filas de impressao' }
         @{ Id='spooler'; Grupo='Impressao'; Nome='Reiniciar spooler local'; Especial=$true; Admin=$true }
         @{ Id='eventos'; Grupo='Relatorios e eventos'; Nome='Eventos recentes de System e Application' }
         @{ Id='ultimo'; Grupo='Relatorios e eventos'; Nome='Rever e salvar ultimo resultado'; Especial=$true }
@@ -40,8 +46,11 @@ function Get-SuporteCatalogo {
         @{ Id='chkdsk'; Grupo='Reparos do Windows'; Nome='CHKDSK: consultar ou verificar por completo'; Especial=$true; Admin=$true }
         @{ Id='perfillocal'; Grupo='Reparos do Windows'; Nome='Verificar e remover perfil local duplicado'; Especial=$true; Admin=$true }
     ) | ForEach-Object {
-        [pscustomobject]@{ Id=$_['Id']; Grupo=$_['Grupo']; Nome=$_['Nome']; Admin=($_['Admin'] -eq $true); Pendente=$false; Especial=($_['Especial'] -eq $true) }
+        [pscustomobject]@{ Id=$_['Id']; Grupo=$_['Grupo']; Nome=$_['Nome']; Pai=$_['Pai']; Admin=($_['Admin'] -eq $true); Pendente=$false; Especial=($_['Especial'] -eq $true) }
     }
+    $catalogo | Where-Object { -not $_.Admin -and $_.Id -ne 'bateria' }
+    $catalogo | Where-Object Admin
+    $catalogo | Where-Object Id -eq 'bateria'
 }
 
 function Get-SuporteDiscoClassificacao {
@@ -67,9 +76,11 @@ function Invoke-SuporteConsulta {
     param([Parameter(Mandatory)][string]$Id, [hashtable]$Opcoes=@{},
         [ValidateRange(1,120)][int]$TimeoutSeconds=25)
     $item = Get-SuporteCatalogo | Where-Object Id -eq $Id | Select-Object -First 1
-    if ($null -eq $item -or ($item.Especial -and $Id -notin @('gpcomputador'))) { throw 'Consulta indisponivel neste fluxo.' }
+    if ($null -eq $item -or ($item.Especial -and $Id -notin @('gpcomputador','autologon'))) { throw 'Consulta indisponivel neste fluxo.' }
     $modulePath = Join-Path $PSScriptRoot 'SuporteTI.psd1'
     $collectorPath = Join-Path $PSScriptRoot 'Consultas.ps1'
+    $Opcoes = $Opcoes.Clone()
+    $Opcoes.Largura = Get-SuporteLargura
     $inicio = Get-Date
     $job = $null
     $status = 'Concluido'
@@ -86,7 +97,7 @@ function Invoke-SuporteConsulta {
         elseif ($job.State -eq 'Failed') { $status = 'Falha' }
         $lines = @(Receive-Job -Job $job -ErrorAction SilentlyContinue -ErrorVariable queryErrors | ForEach-Object { [string]$_ })
         if ($queryErrors) { $status='Parcial ou falha'; $lines += @($queryErrors | ForEach-Object { 'ERRO: ' + $_.ToString() }) }
-        if (@($lines | Where-Object { $_ -match '^\[(INDISPONIVEL|ACESSO NEGADO)\]' }).Count -gt 0 -and $status -eq 'Concluido') { $status='Parcial: ver limitacoes' }
+        if (@($lines | Where-Object { $_ -match '(?m)^\[(INDISPONIVEL|ACESSO NEGADO)\]' }).Count -gt 0 -and $status -eq 'Concluido') { $status='Parcial: ver limitacoes' }
     } catch {
         $status='Falha'; $lines += 'ERRO: ' + $_.Exception.Message
     } finally {
@@ -129,13 +140,12 @@ function Save-SuporteResultado {
 
 function Write-SuporteTela {
     param([string]$Titulo, [switch]$SemCores)
-    Clear-Host
-    $color = if ($SemCores) { $Host.UI.RawUI.ForegroundColor } else { 'Cyan' }
-    $largura = 0
-    try { $largura = $Host.UI.RawUI.WindowSize.Width } catch {}
-    if ($Titulo -eq 'Menu principal' -and $largura -ge 72 -and -not $SemCores) {
+    if ([Console]::IsOutputRedirected) { Write-Host '' }
+    else { try { Clear-Host } catch { Write-Host '' } }
+    $largura = Get-SuporteLargura
+    if ($Titulo -eq 'Menu principal' -and $largura -ge 71 -and -not $SemCores) {
         $faixa = '01' * 35
-        Write-Host $faixa -ForegroundColor $color
+        Write-SuporteLinha $faixa -Cor Cyan
         Write-Host ''
         $marca = @(
             '  #####  #   #  #####  #####  #####  #####  #####       #####  #####'
@@ -146,30 +156,94 @@ function Write-SuporteTela {
             '   .....  .....  .      .....  .  ..    .    .....         .    .....'
         )
         foreach ($linha in $marca) {
-            Write-Host ($linha.Replace('#',[char]0x2588).Replace('.',[char]0x2591)) -ForegroundColor $color
+            Write-SuporteLinha ($linha.Replace('#',[char]0x2588).Replace('.',[char]0x2591)) -Cor Cyan
         }
         Write-Host ''
-        Write-Host '              CAIXA DE FERRAMENTAS WINDOWS' -ForegroundColor $color
-        Write-Host $faixa -ForegroundColor $color
+        Write-SuporteLinha '              CAIXA DE FERRAMENTAS WINDOWS' -Cor Cyan
+        Write-SuporteLinha $faixa -Cor Cyan
     } else {
-        Write-Host ('=' * 44) -ForegroundColor $color
-        Write-Host ('  SUPORTE TI  |  ' + $Titulo) -ForegroundColor $color
-        Write-Host ('=' * 44) -ForegroundColor $color
+        $separador = '=' * [Math]::Min(44,(Get-SuporteLargura))
+        Write-SuporteLinha $separador -Cor Cyan -SemCores:$SemCores
+        Write-SuporteLinha ('  SUPORTE TI  |  ' + $Titulo) -Cor Cyan -SemCores:$SemCores
+        Write-SuporteLinha $separador -Cor Cyan -SemCores:$SemCores
+    }
+    Write-Host ''
+    if ($Titulo -notin 'Menu principal','Sobre') { return }
+    $identidade = $ExecutionContext.SessionState.Module
+    if ($Titulo -eq 'Sobre') {
+        Write-SuporteLinha ('  Versao ' + $identidade.Version) -SemCores
+        Write-SuporteLinha '  Ano 2026' -SemCores
+        Write-SuporteLinha ('  Desenvolvido por ' + $identidade.Author) -SemCores
+        Write-Host ''
+        return
     }
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     $access = if ($isAdmin) { 'Administrador' } else { 'Padrao' }
-    Write-Host ('  ' + $env:COMPUTERNAME + '  |  ' + $env:USERDOMAIN + '\' + $env:USERNAME + '  |  ' + $access)
-    $identidade = $ExecutionContext.SessionState.Module
-    Write-Host "  v$($identidade.Version) - Uso local | Resultados salvos somente por escolha"
-    if ($Titulo -in @('Menu principal', 'Sobre')) {
+    Write-SuporteLinha ('  ' + $env:COMPUTERNAME + '  |  ' + $env:USERDOMAIN + '\' + $env:USERNAME + '  |  ' + $access) -SemCores
+    Write-SuporteLinha "  v$($identidade.Version) - Uso local | Resultados salvos somente por escolha" -SemCores
+    if ($Titulo -eq 'Menu principal') {
         Write-Host ('  Desenvolvido por ' + $identidade.Author)
     }
     Write-Host ''
 }
 
+function Get-SuporteLargura {
+    try {
+        $largura = $Host.UI.RawUI.WindowSize.Width
+        if ($largura -gt 0) { return [Math]::Max(1,$largura - 1) }
+    } catch {}
+    79
+}
+
+function Get-SuporteCorConsole {
+    param([ConsoleColor]$Cor,[ConsoleColor]$Fundo)
+    if ($Fundo -in 'Gray','White','Cyan','Yellow','Green','Magenta','Red') {
+        $Cor = switch ($Cor) {
+            'Cyan' { 'DarkCyan' }; 'Blue' { 'DarkBlue' }; 'Green' { 'DarkGreen' }
+            'Yellow' { 'DarkYellow' }; 'Red' { 'DarkRed' }; 'Gray' { 'DarkGray' }
+            default { $Cor }
+        }
+    }
+    if ($Cor -eq $Fundo) {
+        if ($Fundo -in 'White','Gray','Cyan','Yellow','Green','Magenta','Red') { return 'Black' }
+        return 'White'
+    }
+    $Cor
+}
+
 function Write-SuporteLinha {
     param([string]$Texto,[ConsoleColor]$Cor='Gray',[switch]$SemCores)
-    if ($SemCores) { Write-Host $Texto } else { Write-Host $Texto -ForegroundColor $Cor }
+    $largura = Get-SuporteLargura
+    if (-not $SemCores) {
+        try { $Cor = Get-SuporteCorConsole $Cor $Host.UI.RawUI.BackgroundColor } catch {}
+    }
+    foreach ($linha in ($Texto -split '\r?\n')) {
+        $resto = $linha
+        $recuo = ' ' * [Math]::Min([Math]::Max(0,[Math]::Min(8,$largura - 4)),($linha.Length - $linha.TrimStart().Length))
+        while ($resto.Length -gt $largura) {
+            $corte = $resto.LastIndexOf(' ',$largura)
+            if ($corte -le $recuo.Length) { $corte = $largura }
+            $parte = $resto.Substring(0,$corte).TrimEnd()
+            if ($SemCores) { Write-Host $parte } else { Write-Host $parte -ForegroundColor $Cor }
+            $resto = $recuo + $resto.Substring($corte).TrimStart()
+        }
+        if ($SemCores) { Write-Host $resto } else { Write-Host $resto -ForegroundColor $Cor }
+    }
+}
+
+function Read-SuporteEscolha {
+    param([string[]]$Opcoes=@(),[string]$Titulo,[int[]]$Alteracoes=@(),[switch]$SemCores)
+    if ($Titulo) { Write-SuporteTela -Titulo $Titulo -SemCores:$SemCores }
+    for ($i=0; $i -lt $Opcoes.Count; $i++) {
+        $linha = '  ' + $Opcoes[$i]
+        if (($i + 1) -in $Alteracoes) { Write-SuporteLinha ($linha + ' [ALTERACAO]') -Cor Yellow -SemCores:$SemCores }
+        else { Write-SuporteLinha $linha -SemCores }
+    }
+    if ($Opcoes.Count) { Write-Host '' }
+    Write-SuporteLinha '  [0 ou Enter] Voltar' -SemCores
+    Write-Host ''
+    $escolha = ([string](Read-Host 'Selecione')).Trim()
+    if ($escolha) { $escolha } else { '0' }
 }
 
 function Show-SuporteResultado {
@@ -179,14 +253,43 @@ function Show-SuporteResultado {
     elseif ($Resultado.Texto -match '(?m)^\[PING PARCIAL\]') { $cor = 'Yellow' }
     Write-SuporteLinha "`n  RESULTADO | $($Resultado.Status)" -Cor $cor -SemCores:$SemCores
     foreach ($linha in ($Resultado.Texto -split '\r?\n')) {
-        $destaque = switch -Regex ($linha) {
-            '^\[PING OK\]' {'Green';break}
-            '^\[PING SEM RESPOSTA\]' {'Red';break}
-            '^\[(PING PARCIAL|INDISPONIVEL|ACESSO NEGADO)\]' {'Yellow';break}
-            '^Comando:' {'Cyan';break}
+        $percentual = $null
+        if ($linha -match '^((?:\[INDISPONIVEL\] )?Disco \d+ \(.*\)): (Troca recomendada|Atencao - avaliar troca|Sem alertas detectados|Inconclusivo)\.\s*(.*)$') {
+            $identificacao = $Matches[1]; $estadoDisco = $Matches[2]; $detalhes = $Matches[3]
+            $destaque = switch ($estadoDisco) {
+                'Troca recomendada' { 'Red' }
+                'Atencao - avaliar troca' { 'Yellow' }
+                'Sem alertas detectados' { 'Blue' }
+                'Inconclusivo' { 'Gray' }
+            }
+            $linha = "${identificacao}: $estadoDisco."
+            if ($detalhes -match '^(.*?)\s*(Desgaste estimado: (\d{1,3})% usado\..*)$') {
+                $percentual = [int]$Matches[3]
+                $detalhes = $Matches[1] + "`n  " + $Matches[2]
+            }
+            if ($detalhes) { $linha += "`n  " + $detalhes }
+        } elseif ($linha -match '^Bateria \d+: (\d+(?:[.,]\d)?)% da capacidade original ') {
+            $destaque = 'Blue'
+            $percentual = [double]::Parse(($Matches[1] -replace ',','.'),[Globalization.CultureInfo]::InvariantCulture)
+        } else {
+            $destaque = switch -Regex ($linha) {
+                '^\[PING OK\]' {'Green';break}
+                '^\[PING SEM RESPOSTA\]' {'Red';break}
+                '^\[IMPRESSAO PROBLEMA\]' {'Red';break}
+                '^\[IMPRESSAO ATENCAO\]' {'Yellow';break}
+                '^\[(PING PARCIAL|INDISPONIVEL|ACESSO NEGADO)\]' {'Yellow';break}
+                '^Comando:' {'Cyan';break}
+                '^(--- |Ocorrencia mais recente|Detalhes tecnicos|(?:Outros )?[Cc]odigos de falha encontrados|Registros proximos)' {'Cyan';break}
+            }
         }
         if ($destaque) { Write-SuporteLinha $linha -Cor $destaque -SemCores:$SemCores }
-        else { Write-Host $linha }
+        else { Write-SuporteLinha $linha -SemCores }
+        if ($null -ne $percentual) {
+            $tamanho = [Math]::Max(1,[Math]::Min(20,(Get-SuporteLargura) - 4))
+            $cheios = [int][Math]::Floor([Math]::Min(100.0,[double]$percentual) * $tamanho / 100.0)
+            $barra = '  [' + ('#' * $cheios) + ('-' * ($tamanho - $cheios)) + ']'
+            Write-SuporteLinha $barra -Cor $destaque -SemCores:$SemCores
+        }
     }
     Write-Host ''
 }
@@ -216,45 +319,42 @@ function Start-SuporteMenu {
     $ultimo = $null
     while ($true) {
         Write-SuporteTela -Titulo 'Menu principal' -SemCores:$SemCores
-        for ($i=0; $i -lt $grupos.Count; $i++) { Write-Host ('  [{0}] {1}' -f ($i+1),$grupos[$i]) }
-        Write-Host '  [8] Sobre o Suporte TI'
-        Write-Host "`n  [0] Sair`n"
-        $entrada = Read-Host 'Selecione'
-        if ($entrada -eq '0') { return }
+        for ($i=0; $i -lt $grupos.Count; $i++) { Write-SuporteLinha ('  [{0}] {1}' -f ($i+1),$grupos[$i]) -SemCores }
+        Write-SuporteLinha '  [8] Sobre o Suporte TI' -SemCores
+        Write-SuporteLinha "`n  [0 ou Enter] Sair`n" -SemCores
+        $entrada = ([string](Read-Host 'Selecione')).Trim()
+        if (-not $entrada -or $entrada -eq '0') { return }
         if ($entrada -eq '8') {
             Write-SuporteTela -Titulo 'Sobre' -SemCores:$SemCores
-            Write-Host '  Caixa de ferramentas para suporte Windows'
-            [void](Read-Host "`nPressione Enter para voltar")
+            [void](Read-Host '0 ou Enter para voltar')
             continue
         }
         if ($entrada -notmatch '^[1-7]$') { continue }
         $grupo = $grupos[[int]$entrada-1]
-        $items = @($catalogo | Where-Object Grupo -eq $grupo)
-        while ($true) {
+        $items = @($catalogo | Where-Object { $_.Grupo -eq $grupo -and -not $_.Pai })
+        :submenu while ($true) {
             Write-SuporteTela -Titulo $grupo -SemCores:$SemCores
             foreach ($admin in @($false,$true)) {
-                $subset=@($items | Where-Object Admin -eq $admin)
+                $subset=@($items | Where-Object { $_.Admin -eq $admin -and $_.Id -ne 'bateria' })
                 if ($subset.Count -eq 0) { continue }
                 $secao = if ($admin) { '  ADMINISTRADOR | O Windows pode pedir elevacao' } else { '  SESSAO ATUAL' }
                 $corSecao = if ($admin) { 'Yellow' } else { 'Cyan' }
                 Write-SuporteLinha $secao -Cor $corSecao -SemCores:$SemCores
                 foreach ($item in $subset) {
                     $number=[array]::IndexOf($items,$item)+1
-                    $suffix=if ($item.Id -in @('cache','gpupdateuser','gpupdatecomputer','spooler','netdhcp','netstatic','chromecache')) { ' [ALTERACAO]' } elseif($item.Id -in @('sfc','dism','chkdsk')){' [Verificacao / reparo]'} else { '' }
+                    $suffix=if ($item.Id -in @('cache','gpupdateuser','gpupdatecomputer','spooler','netdhcp','netstatic','chromecache','perfillocal')) { ' [ALTERACAO]' } elseif($item.Id -in @('sfc','dism','chkdsk')){' [Verificacao / reparo]'} else { '' }
                     if ($suffix) { Write-SuporteLinha ('  [{0}] {1}{2}' -f $number,$item.Nome,$suffix) -Cor Yellow -SemCores:$SemCores }
-                    else { Write-Host ('  [{0}] {1}' -f $number,$item.Nome) }
-                    $referencia = switch ($item.Id) {
-                        'gpupdateuser' { 'gpupdate.exe ' + ((Get-SuporteArgumentosGpupdate user) -join ' ') + '  (+ /force opcional)' }
-                        'gpupdatecomputer' { 'gpupdate.exe ' + ((Get-SuporteArgumentosGpupdate computer) -join ' ') + '  (+ /force opcional)' }
-                        'eventos' { 'Get-WinEvent -FilterHashtable ... -MaxEvents 30' }
-                        'evtx' { 'wevtutil.exe epl' }
-                    }
-                    if ($referencia) { Write-SuporteLinha ('      ' + $referencia) -Cor Cyan -SemCores:$SemCores }
+                    else { Write-SuporteLinha ('  [{0}] {1}' -f $number,$item.Nome) -SemCores }
                 }
                 Write-Host ''
             }
-            Write-Host '  [0] Voltar'
-            $entrada=Read-Host 'Selecione'
+            $bateria = $items | Where-Object Id -eq 'bateria'
+            if ($bateria) {
+                Write-SuporteLinha '  NOTEBOOK' -Cor Cyan -SemCores:$SemCores
+                Write-SuporteLinha ('  [{0}] {1}' -f ($items.Count),$bateria.Nome) -SemCores
+                Write-Host ''
+            }
+            $entrada=Read-SuporteEscolha -SemCores:$SemCores
             if ($entrada -eq '0') { break }
             if ($entrada -notmatch '^[1-9][0-9]?$') { continue }
             $index=[int]$entrada-1
@@ -262,61 +362,111 @@ function Start-SuporteMenu {
             $item=$items[$index]
             if ($item.Especial) {
                 switch ($item.Id) {
-                    'monitor' { Show-SuporteMonitor }
+                    'monitor' { Write-SuporteTela -Titulo $item.Nome -SemCores:$SemCores; Show-SuporteMonitor }
+                    'mapaocupacao' {
+                        Write-SuporteTela -Titulo $item.Nome -SemCores:$SemCores
+                        try { Show-SuporteMapaOcupacao; continue submenu }
+                        catch { Write-SuporteLinha ('Falha ao abrir o mapa: ' + $_.Exception.Message) -Cor Red -SemCores:$SemCores }
+                    }
+                    'autologon' {
+                        $choice = Read-SuporteEscolha @('[1] Consultar (ver se esta ativo)','[2] Configurar (administrador)','[3] Desativar (administrador)') -Titulo $item.Nome -Alteracoes 2,3 -SemCores:$SemCores
+                        if ($choice -notin @('1','2','3')) { continue submenu }
+                        switch ($choice) {
+                            '1' {
+                                Write-SuporteTela -Titulo 'Consultar login automatico' -SemCores:$SemCores
+                                try { Show-SuporteResultado (Invoke-SuporteConsulta -Id autologon) -SemCores:$SemCores }
+                                catch { Write-SuporteLinha ('Consulta falhou: ' + $_.Exception.Message) -Cor Red -SemCores:$SemCores }
+                            }
+                            '2' { Request-SuporteOperacao autologonenable $documentos -SemCores:$SemCores }
+                            '3' { Request-SuporteOperacao autologondisable $documentos -SemCores:$SemCores }
+                        }
+                    }
                     'ultimo' {
+                        Write-SuporteTela -Titulo $item.Nome -SemCores:$SemCores
                         if ($null -eq $ultimo) { Write-Host 'Nenhum resultado nesta sessao.' }
                         else { Show-SuporteResultado $ultimo -SemCores:$SemCores; Request-SuporteSalvar $ultimo $documentos }
                     }
-                    'gphtml' { Request-SuporteExportar gphtml $documentos }
-                    'evtx' { Request-SuporteExportar evtx $documentos }
-                    'gpcomputador' { Request-SuporteOperacao gpcomputerquery $documentos }
-                    'diskhealth' { Request-SuporteOperacao diskhealth $documentos }
+                    'gphtml' {
+                        $choice=Read-SuporteEscolha @('[1] HTML do usuario atual','[2] HTML do computador (administrador)') -Titulo $item.Nome -SemCores:$SemCores
+                        if ($choice -notin @('1','2')) { continue submenu }
+                        $escopo = if ($choice -eq '1') { 'User' } else { 'Computer' }
+                        Request-SuporteExportar gphtml $documentos -Escopo $escopo -SemCores:$SemCores
+                    }
+                    'evtx' { Request-SuporteExportar evtx $documentos -SemCores:$SemCores }
+                    'gpcomputador' { Request-SuporteOperacao gpcomputerquery $documentos -SemCores:$SemCores }
+                    'diskhealth' { Request-SuporteOperacao diskhealth $documentos -SemCores:$SemCores }
                     {$_ -in @('gpupdateuser','gpupdatecomputer')} {
-                        $force=(Read-Host 'Reaplicar todas as politicas do escopo (/force)? [s/N]') -ieq 's'
-                        $escopo=if ($item.Id -eq 'gpupdateuser') { 'user' } else { 'computer' }
-                        Write-SuporteLinha ('Comando: gpupdate.exe ' + ((Get-SuporteArgumentosGpupdate $escopo -Forcar:$force) -join ' ')) -Cor Cyan -SemCores:$SemCores
+                        $choice=Read-SuporteEscolha @('[1] Atualizar politicas (processamento normal)','[2] Reaplicar todas (/force)') -Titulo $item.Nome -Alteracoes 1,2 -SemCores:$SemCores
+                        if ($choice -notin @('1','2')) { continue submenu }
+                        $force=$choice -eq '2'
                         $action=if ($item.Id -eq 'gpupdateuser') { 'gpuser' } else { 'gpcomputer' }
-                        Request-SuporteOperacao $action $documentos -Forcar:$force
+                        Request-SuporteOperacao $action $documentos -Forcar:$force -SemCores:$SemCores
                     }
                     'sfc' {
-                        $choice=Read-Host '[1] Verificar sem reparar | [2] Reparar /scannow | [0] Voltar'
-                        if ($choice -eq '1') { Request-SuporteOperacao sfcverify $documentos }
-                        elseif ($choice -eq '2') { Request-SuporteOperacao sfcrepair $documentos }
+                        $choice=Read-SuporteEscolha @('[1] Verificar (arquivos protegidos do Windows)','[2] Verificar e reparar (/scannow)') -Titulo $item.Nome -Alteracoes 2 -SemCores:$SemCores
+                        if ($choice -eq '0') { continue submenu }
+                        if ($choice -eq '1') { Request-SuporteOperacao sfcverify $documentos -SemCores:$SemCores }
+                        elseif ($choice -eq '2') { Request-SuporteOperacao sfcrepair $documentos -SemCores:$SemCores }
                     }
                     'dism' {
-                        $choice=Read-Host '[1] CheckHealth | [2] ScanHealth | [3] RestoreHealth | [0] Voltar'
-                        if ($choice -eq '1') { Request-SuporteOperacao dismcheck $documentos }
-                        elseif ($choice -eq '2') { Request-SuporteOperacao dismscan $documentos }
-                        elseif ($choice -eq '3') { Request-SuporteOperacao dismrestore $documentos }
+                        $choice=Read-SuporteEscolha @('[1] Consultar o estado registrado (CheckHealth)','[2] Examinar a imagem do Windows (ScanHealth)','[3] Reparar a imagem do Windows (RestoreHealth)') -Titulo $item.Nome -Alteracoes 3 -SemCores:$SemCores
+                        if ($choice -eq '0') { continue submenu }
+                        if ($choice -eq '1') { Request-SuporteOperacao dismcheck $documentos -SemCores:$SemCores }
+                        elseif ($choice -eq '2') { Request-SuporteOperacao dismscan $documentos -SemCores:$SemCores }
+                        elseif ($choice -eq '3') { Request-SuporteOperacao dismrestore $documentos -SemCores:$SemCores }
                     }
                     'chkdsk' {
-                        $choice=Read-Host '[1] Consultar sem reparar | [2] Completo /f /r (pode exigir reinicio) | [0] Voltar'
-                        if ($choice -eq '1') { Request-SuporteOperacao chkdskread $documentos }
-                        elseif ($choice -eq '2') { Request-SuporteOperacao chkdskfull $documentos }
+                        $choice=Read-SuporteEscolha @('[1] Verificar o volume (somente leitura)','[2] Corrigir erros e procurar setores defeituosos (pode exigir reinicio)') -Titulo $item.Nome -Alteracoes 2 -SemCores:$SemCores
+                        if ($choice -eq '0') { continue submenu }
+                        if ($choice -eq '1') { Request-SuporteOperacao chkdskread $documentos -SemCores:$SemCores }
+                        elseif ($choice -eq '2') { Request-SuporteOperacao chkdskfull $documentos -SemCores:$SemCores }
                     }
-                    default { Request-SuporteOperacao $item.Id $documentos }
+                    default { Request-SuporteOperacao $item.Id $documentos -SemCores:$SemCores }
                 }
-                [void](Read-Host 'Enter para voltar'); continue
+                [void](Read-Host '0 ou Enter para voltar'); continue
             }
             if ($item.Admin) {
                 $principal=New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
                 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
                     Write-Host 'Consulta requer administrador. Elevacao por operacao sera entregue na proxima fase.'
-                    [void](Read-Host 'Enter para voltar'); continue
+                    [void](Read-Host '0 ou Enter para voltar'); continue
                 }
             }
-            $opcoes=@{}
-            if ($item.Id -eq 'ping') {
-                $destino = Read-Host 'Site ou IP (Enter volta)'
-                if (-not $destino) { continue }
-                try { $opcoes.Destino = Get-SuporteDestinoPing $destino }
-                catch { Write-Host $_.Exception.Message; [void](Read-Host 'Enter para voltar'); continue }
-            }
-            $limit=if ($item.Id -eq 'discos') { 40 } else { 25 }
-            Write-Host ('Consultando... limite de '+$limit+' segundos; sem alteracoes corretivas.')
-            try { $ultimo=Invoke-SuporteConsulta -Id $item.Id -Opcoes $opcoes -TimeoutSeconds $limit; Show-SuporteResultado $ultimo -SemCores:$SemCores; Request-SuporteSalvar $ultimo $documentos }
-            catch { Write-Host ('Consulta falhou: ' + $_.Exception.Message) }
-            [void](Read-Host 'Enter para voltar')
+            do {
+                $consultaId = $item.Id
+                $tituloConsulta = $item.Nome
+                $opcoes = @{}
+                if ($item.Id -eq 'falhas') {
+                    $escolha = Read-SuporteEscolha @('[1] Analisar os ultimos erros e travamentos (ultimas 24h)','[2] Consultar um codigo de erro (digitar o numero)') -Titulo $item.Nome -SemCores:$SemCores
+                    if ($escolha -eq '0') { continue submenu }
+                    if ($escolha -notin '1','2') { continue }
+                    if ($escolha -eq '2') {
+                        $tituloConsulta = 'Consultar um codigo de erro'
+                        $familia = Read-SuporteEscolha @('[1] Tela azul (codigo de parada)','[2] Excecao de aplicativo (NTSTATUS)','[3] Erro do sistema (Win32)','[4] HRESULT (componentes e aplicativos do Windows)') -Titulo $tituloConsulta -SemCores:$SemCores
+                        if ($familia -notin '1','2','3','4') { continue }
+                        $tipoCodigo = @('Tela azul','NTSTATUS','Win32','HRESULT')[[int]$familia-1]
+                        $tituloConsulta += ' | ' + $tipoCodigo
+                        Write-SuporteTela -Titulo $tituloConsulta -SemCores:$SemCores
+                        $codigo = ([string](Read-Host 'Codigo decimal ou hexadecimal com 0x (0 ou Enter volta)')).Trim()
+                        if ($codigo -in '','0') { continue }
+                        $consultaId = 'codigofalha'
+                        $opcoes = @{ Familia=@('Paradas','Excecoes','Win32','HRESULT')[[int]$familia-1]; Codigo=$codigo }
+                    } else { $tituloConsulta = 'Analisar os ultimos erros e travamentos (24h)' }
+                }
+                if ($item.Id -eq 'ping') {
+                    Write-SuporteTela -Titulo $tituloConsulta -SemCores:$SemCores
+                    $destino = ([string](Read-Host 'Site ou IP (0 ou Enter volta)')).Trim()
+                    if (-not $destino -or $destino -eq '0') { continue submenu }
+                    try { $opcoes.Destino = Get-SuporteDestinoPing $destino }
+                    catch { Write-SuporteLinha $_.Exception.Message -SemCores; [void](Read-Host '0 ou Enter para voltar'); continue submenu }
+                }
+                $limit = if ($item.Id -eq 'discos') { 40 } else { 25 }
+                Write-SuporteTela -Titulo $tituloConsulta -SemCores:$SemCores
+                Write-SuporteLinha ('Consultando... limite de '+$limit+' segundos; sem alteracoes corretivas.') -SemCores
+                try { $ultimo=Invoke-SuporteConsulta -Id $consultaId -Opcoes $opcoes -TimeoutSeconds $limit; Show-SuporteResultado $ultimo -SemCores:$SemCores; Request-SuporteSalvar $ultimo $documentos }
+                catch { Write-Host ('Consulta falhou: ' + $_.Exception.Message) }
+                [void](Read-Host '0 ou Enter para voltar')
+            } while ($item.Id -eq 'falhas')
         }
     }
 }

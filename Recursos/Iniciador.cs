@@ -7,8 +7,8 @@ using System.Reflection;
 [assembly: AssemblyProduct("Suporte TI")]
 [assembly: AssemblyCompany("Gustavo Brand\u00E3o Gimenez")]
 [assembly: AssemblyDescription("Caixa de ferramentas para suporte Windows")]
-[assembly: AssemblyVersion("0.1.7.0")]
-[assembly: AssemblyFileVersion("0.1.7.0")]
+[assembly: AssemblyVersion("0.1.21.0")]
+[assembly: AssemblyFileVersion("0.1.21.0")]
 
 internal static class Iniciador
 {

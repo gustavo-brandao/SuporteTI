@@ -3,9 +3,39 @@
 Data: 04/11/2026  
 Status: referência do planejamento aprovado. A implementação e suas limitações estão descritas em README.md.
 
+Na prévia 0.1.21, grupos, escolhas, operações e consultas usam telas com títulos próprios. A consulta manual de código separa família, digitação e resultado. O resultado fica disponível para leitura ou salvamento antes de voltar. As opções de alteração recebem rótulos, e escolhas técnicas como DISM e CHKDSK trazem explicações curtas.
+
+Na prévia 0.1.20, a triagem automática apresenta os códigos distintos encontrados nos registros consultados e suas explicações, inclusive quando a ocorrência principal não tem um código de falha identificado. A consulta por digitação continua no mesmo submenu.
+
+Na prévia 0.1.19, **Computador > Falhas recentes e códigos de erro** reúne a triagem automática e a consulta manual por código. O submenu apresenta primeiro a análise dos logs. Após qualquer resultado, o técnico pode escolher outra consulta no mesmo lugar.
+
+Na prévia 0.1.18, o catálogo público cresce até perto de 1 MB com identificadores de tela azul, NTSTATUS, Win32 e HRESULT. A triagem continua identificando a família pelo registro original. A consulta manual permite selecionar a família e buscar um código visto em outra tela ou relatório. Explicações revisadas têm prioridade e a mensagem nativa em português complementa a cobertura quando disponível.
+
+Na prévia 0.1.17, o catálogo da triagem passa a ser um arquivo de dados versionado no pacote público. Reúne traduções curtas de códigos de parada e de exceção, pistas para investigação e referências oficiais. A lista prioriza os códigos úteis na triagem de bancada e pode crescer sem alteração no coletor.
+
+Na prévia 0.1.16, **Computador > Falhas recentes** ganha triagem de incidentes em português. A edição pública usa os logs locais do Windows e um catálogo de códigos de parada. O resumo separa fatos registrados e pistas para investigação. A leitura do conteúdo de dumps fica para avaliação futura. A listagem bruta permanece em **Relatórios e eventos**.
+
+Para uma etapa futura, o BlueScreenView oferece exportação de minidumps por linha de comando. A licença freeware permite redistribuição gratuita do pacote completo, sem alterações. A documentação de requisitos cita Windows 10. A leitura em Windows 11 precisa ser verificada antes de qualquer integração. Para código reutilizável, EvtxECmd (MIT) é referência para mapas de eventos e importação de EVTX de outra máquina. kdmp-parser (MIT) é candidato para leitura de dumps de kernel, com cobertura de minidumps a verificar. WinDbg serve para comparar a leitura de códigos, parâmetros e pilhas em laboratório. A prévia usa os próprios recursos do Windows. [BlueScreenView](https://www.nirsoft.net/utils/blue_screen_view.html) · [EvtxECmd](https://github.com/EricZimmerman/evtx) · [kdmp-parser](https://github.com/0vercl0k/kdmp-parser) · [WinDbg](https://learn.microsoft.com/en-us/troubleshoot/windows-client/performance/read-small-memory-dump-file)
+
+Na prévia 0.1.15, **Computador** ganha o mapa de ocupação para volumes locais fixos e a gestão de login automático do Windows. O mapa usa retângulos proporcionais em janela própria do Suporte TI. A consulta do login é somente leitura. Configurar ou desativar exige confirmação e elevação, com senha protegida pelo segredo LSA. A edição pública mantém funções genéricas de Windows. A edição fechada segue em projeto separado, com adoção após avaliação das mudanças na edição pública.
+
+Na prévia 0.1.14, a opção **Sobre** reúne versão, ano de 2026 e crédito de desenvolvimento. Os dados da sessão ficam nas telas de trabalho.
+
+Na prévia 0.1.13, os grupos mostram opções em ordem numérica, com **0 ou Enter** para voltar. As escolhas de GPO exigem selecionar a ação antes de atualizar. A bateria permanece visível em Computador e informa quando o equipamento não se aplica. Os resultados se ajustam à largura do console. O diagnóstico de filas é somente leitura e aparece antes da ação de reiniciar o spooler.
+
+Na prévia 0.1.12, o Kingston A400 usa o atributo E7 conforme o firmware identificado. A apresentação distingue resistência usada e restante. A barra e o limiar preventivo continuam baseados no percentual usado.
+
+Na prévia 0.1.11, a recomendação de saúde de SSDs NVMe passa a usar o motivo específico do aviso do dispositivo. Um alerta térmico isolado recebe atenção. Perda de confiabilidade e mídia somente leitura justificam recomendar troca.
+
+Na prévia 0.1.10, a porcentagem de desgaste fica restrita a SSDs com indicador disponível. O Suporte TI usa 80% de desgaste estimado como limiar de atenção preventiva. Falhas críticas de saúde mantêm prioridade na recomendação.
+
+Na prévia 0.1.9, a saúde dos discos ganhou cores por resultado e uma barra de desgaste com a mesma cor. A seção **Notebook** ganhou uma barra azul para a capacidade atual da bateria em relação à original. As barras acompanham os percentuais exibidos em texto e ficam disponíveis no modo sem cores.
+
 Na versão 0.1.7, a abertura portátil usa `Suporte TI.exe`, com nome e ícone próprios. O executável encontra o menu PowerShell na mesma pasta do pacote.
 
 A edição pública credita **Gustavo Brandão Gimenez** e usa a [licença MIT](LICENSE) para seu código próprio. A futura edição privada da UCDB terá repositório privado e o crédito **Suporte DTI - UCDB**.
+
+Na prévia 0.1.8, a primeira prioridade foi a saúde da bateria na seção **Notebook**, usando apenas o relatório nativo do Windows. A segunda foi a saúde de HDDs e SSDs internos, com leitura SMART e contadores do Windows e uma recomendação por disco. A consulta usa o smartctl portátil. A interpretação de desgaste por modelo do CrystalDiskInfo serviu de referência para validar o atributo SMART 202 dos SSDs Crucial MX500, com conferência do valor normalizado e do valor bruto. USB, RAID, carregamento e consumo em suspensão ficam fora desta etapa. As mudanças genéricas são testadas na edição pública antes da homologação institucional da edição fechada.
 
 Na versão 0.1.6, o menu ganhou destaques por cor e barra de ocupação de disco. Domínio exibe nome da máquina, ingresso e nome do domínio. A configuração manual de IPv4 inclui máscara, gateway e um ou dois DNS. GPO e Eventos exibem os comandos. Enter no prompt de salvamento equivale a Não.
 

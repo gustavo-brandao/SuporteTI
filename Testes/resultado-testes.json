@@ -1,5 +1,5 @@
 ﻿{
-    "Data":  "2026-11-05T09:29:16.5848859-04:00",
+    "Data":  "2026-11-05T17:09:46.3123033-04:00",
     "PowerShell":  "5.1.26100.9818",
     "Tipo":  "Simulacoes controladas; consultas reais apenas com switch",
     "Testes":  [
@@ -364,6 +364,60 @@
                        "Detalhe":  ""
                    },
                    {
+                       "Opcao":  "falhas",
+                       "Teste":  "agrupa reinicio e tela azul com codigo explicado e contexto anterior",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "interpreta codigo decimal e preserva incerteza no reinicio sem codigo",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "distingue travamento de aplicativo e codigo de parada desconhecido",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "traduz excecao de aplicativo e preserva o modulo nos detalhes",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "erro sem codigo nao oculta codigos anteriores nem interpreta numeros do texto",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "lista codigos de ocorrencias anteriores sem entrada manual",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "catalogo indexa as quatro familias e preserva as explicacoes revisadas",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "codigofalha",
+                       "Teste":  "decodifica decimal, HRESULT negativo e parada com referencia",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "catalogo indisponivel preserva o codigo de parada e a ocorrencia",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
                        "Opcao":  "rede",
                        "Teste":  "menu exibe consultas e mudancas IPv4 separadas",
                        "Resultado":  "PASSOU",
@@ -402,6 +456,24 @@
                    {
                        "Opcao":  "ping",
                        "Teste":  "sucesso, perda parcial e falta de resposta recebem cores distintas",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "discos",
+                       "Teste":  "status e barra de desgaste usam a mesma cor no console",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "encaminha SemCores para a janela elevada",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "bateria",
+                       "Teste":  "barra usa capacidade relativa com decimal local e omite dado ausente",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
                    },
@@ -472,6 +544,12 @@
                        "Detalhe":  ""
                    },
                    {
+                       "Opcao":  "discos",
+                       "Teste":  "console estreito preserva texto e alinha barra de desgaste",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
                        "Opcao":  "chromecache",
                        "Teste":  "remove arquivos de cache e preserva dados dos perfis em pasta de teste",
                        "Resultado":  "PASSOU",
@@ -515,7 +593,37 @@
                    },
                    {
                        "Opcao":  "diskhealth",
-                       "Teste":  "NVMe critico",
+                       "Teste":  "NVMe com confiabilidade degradada",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "NVMe com alerta apenas de temperatura",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "NVMe com reserva baixa e log indisponivel",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "NVMe somente leitura prevalece sobre alerta termico",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "NVMe com erros de midia e SMART global aprovado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "NVMe com aviso global sem motivo especificado",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
                    },
@@ -718,6 +826,102 @@
                        "Detalhe":  ""
                    },
                    {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "relatorio consolida discos internos e preserva alerta em leitura parcial",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "SMART parcial sem alertas permanece inconclusivo",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "HDD omite Wear do Windows e SSD com desgaste elevado recebe atencao",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "desgaste SATA usa formato confirmado e rejeita atributo ambiguo",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "A400 SBFK interpreta E7 bruto como restante e ignora agregado invertido",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "A400 seleciona E7 pelo firmware e omite desgaste ambiguo",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "bateria",
+                       "Teste":  "relatorio com namespace calcula capacidade de cada bateria",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "bateria",
+                       "Teste":  "distingue capacidade ausente de nenhuma bateria",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "bateria",
+                       "Teste":  "desktop com nobreak USB exibe a opcao e informa que nao se aplica",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "mapaocupacao",
+                       "Teste":  "varredura agrega tamanhos e para de forma segura ao atingir limite",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "mapaocupacao",
+                       "Teste":  "janela desenha cores e permite navegar para a subpasta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "autologon",
+                       "Teste":  "configura segredo antes de habilitar e restaura metadados em falha",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "autologon",
+                       "Teste":  "consulta omite senha e desativacao limpa configuracao na sessao elevada atual",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "filaimpressao",
+                       "Teste":  "identifica impressora com erro de fila e preserva filas normais",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "filaimpressao",
+                       "Teste":  "spooler parado informa a causa sem consultar filas",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "Enter e zero voltam das escolhas de GPO sem executar operacoes",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
                        "Opcao":  "sistema",
                        "Teste":  "navegacao do menu despacha a opcao correta",
                        "Resultado":  "PASSOU",
@@ -737,12 +941,6 @@
                    },
                    {
                        "Opcao":  "discos",
-                       "Teste":  "navegacao do menu despacha a opcao correta",
-                       "Resultado":  "PASSOU",
-                       "Detalhe":  ""
-                   },
-                   {
-                       "Opcao":  "diskhealth",
                        "Teste":  "navegacao do menu despacha a opcao correta",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
@@ -772,7 +970,25 @@
                        "Detalhe":  ""
                    },
                    {
+                       "Opcao":  "codigofalha",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
                        "Opcao":  "chromecache",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "mapaocupacao",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "autologon",
                        "Teste":  "navegacao do menu despacha a opcao correta",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
@@ -802,37 +1018,13 @@
                        "Detalhe":  ""
                    },
                    {
-                       "Opcao":  "netdhcp",
-                       "Teste":  "navegacao do menu despacha a opcao correta",
-                       "Resultado":  "PASSOU",
-                       "Detalhe":  ""
-                   },
-                   {
-                       "Opcao":  "netstatic",
-                       "Teste":  "navegacao do menu despacha a opcao correta",
-                       "Resultado":  "PASSOU",
-                       "Detalhe":  ""
-                   },
-                   {
                        "Opcao":  "update",
                        "Teste":  "navegacao do menu despacha a opcao correta",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
                    },
                    {
-                       "Opcao":  "cache",
-                       "Teste":  "navegacao do menu despacha a opcao correta",
-                       "Resultado":  "PASSOU",
-                       "Detalhe":  ""
-                   },
-                   {
                        "Opcao":  "gpusuario",
-                       "Teste":  "navegacao do menu despacha a opcao correta",
-                       "Resultado":  "PASSOU",
-                       "Detalhe":  ""
-                   },
-                   {
-                       "Opcao":  "gpcomputador",
                        "Teste":  "navegacao do menu despacha a opcao correta",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
@@ -850,13 +1042,7 @@
                        "Detalhe":  ""
                    },
                    {
-                       "Opcao":  "gpupdatecomputer",
-                       "Teste":  "navegacao do menu despacha a opcao correta",
-                       "Resultado":  "PASSOU",
-                       "Detalhe":  ""
-                   },
-                   {
-                       "Opcao":  "spooler",
+                       "Opcao":  "filaimpressao",
                        "Teste":  "navegacao do menu despacha a opcao correta",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
@@ -875,6 +1061,48 @@
                    },
                    {
                        "Opcao":  "evtx",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "netdhcp",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "netstatic",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "cache",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpcomputador",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpupdatecomputer",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "spooler",
                        "Teste":  "navegacao do menu despacha a opcao correta",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
@@ -904,8 +1132,32 @@
                        "Detalhe":  ""
                    },
                    {
+                       "Opcao":  "bateria",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "0 e Enter voltam no submenu de falhas sem consultar",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
                        "Opcao":  "seguranca",
                        "Teste":  "menu ignora selecoes invalidas sem executar consulta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "consulta por codigo separa as telas de familia, entrada e resultado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "layout estreito preserva opcoes e rotulos sem depender das cores",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
                    }
@@ -928,12 +1180,7 @@
                       },
                       {
                           "Opcao":  "discos",
-                          "Testes":  7,
-                          "Cobertura":  true
-                      },
-                      {
-                          "Opcao":  "diskhealth",
-                          "Testes":  8,
+                          "Testes":  9,
                           "Cobertura":  true
                       },
                       {
@@ -953,12 +1200,27 @@
                       },
                       {
                           "Opcao":  "falhas",
-                          "Testes":  3,
+                          "Testes":  13,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "codigofalha",
+                          "Testes":  2,
                           "Cobertura":  true
                       },
                       {
                           "Opcao":  "chromecache",
                           "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "mapaocupacao",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "autologon",
+                          "Testes":  3,
                           "Cobertura":  true
                       },
                       {
@@ -982,32 +1244,12 @@
                           "Cobertura":  true
                       },
                       {
-                          "Opcao":  "netdhcp",
-                          "Testes":  2,
-                          "Cobertura":  true
-                      },
-                      {
-                          "Opcao":  "netstatic",
-                          "Testes":  3,
-                          "Cobertura":  true
-                      },
-                      {
                           "Opcao":  "update",
                           "Testes":  3,
                           "Cobertura":  true
                       },
                       {
-                          "Opcao":  "cache",
-                          "Testes":  4,
-                          "Cobertura":  true
-                      },
-                      {
                           "Opcao":  "gpusuario",
-                          "Testes":  3,
-                          "Cobertura":  true
-                      },
-                      {
-                          "Opcao":  "gpcomputador",
                           "Testes":  3,
                           "Cobertura":  true
                       },
@@ -1022,13 +1264,8 @@
                           "Cobertura":  true
                       },
                       {
-                          "Opcao":  "gpupdatecomputer",
-                          "Testes":  4,
-                          "Cobertura":  true
-                      },
-                      {
-                          "Opcao":  "spooler",
-                          "Testes":  4,
+                          "Opcao":  "filaimpressao",
+                          "Testes":  3,
                           "Cobertura":  true
                       },
                       {
@@ -1043,6 +1280,41 @@
                       },
                       {
                           "Opcao":  "evtx",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "diskhealth",
+                          "Testes":  20,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "netdhcp",
+                          "Testes":  2,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "netstatic",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "cache",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "gpcomputador",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "gpupdatecomputer",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "spooler",
                           "Testes":  4,
                           "Cobertura":  true
                       },
@@ -1063,6 +1335,11 @@
                       },
                       {
                           "Opcao":  "perfillocal",
+                          "Testes":  5,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "bateria",
                           "Testes":  5,
                           "Cobertura":  true
                       }

@@ -11,7 +11,7 @@ function Get-SuporteOperacao {
         dismcheck=@{Titulo='DISM CheckHealth';Admin=$true;Impacto='Consulta o estado registrado da imagem; nao realiza varredura completa.'}
         dismscan=@{Titulo='DISM ScanHealth';Admin=$true;Impacto='Verificacao demorada da imagem, sem RestoreHealth.'}
         dismrestore=@{Titulo='DISM RestoreHealth';Admin=$true;Impacto='Repara a imagem usando as fontes configuradas no Windows/GPO. Pode acessar a rede e demorar.'}
-        diskhealth=@{Titulo='Saude detalhada dos discos';Admin=$true;Impacto='Somente leitura SMART/NVMe; sem testes extensos ou reparos.'}
+        diskhealth=@{Titulo='Saude dos discos internos';Admin=$true;Impacto='Somente leitura SMART/NVMe; sem testes extensos ou reparos.'}
         gpcomputerquery=@{Titulo='Consultar GPO do computador';Admin=$true;Impacto='Consulta somente leitura.'}
         gpcomputerhtml=@{Titulo='Exportar GPO do computador em HTML';Admin=$true;Impacto='Exporta politicas do computador, sem alterar GPO. O destino e escolhido na janela elevada.'}
         netdhcp=@{Titulo='Trocar IPv4 fixo por DHCP';Admin=$true;Impacto='Remove IPv4 e gateway fixos do adaptador selecionado e configura DNS IPv4 automatico. Pode interromper a conexao.'}
@@ -20,6 +20,8 @@ function Get-SuporteOperacao {
         chkdskread=@{Titulo='CHKDSK - consultar volume';Admin=$true;Impacto='Verifica o sistema de arquivos do volume selecionado sem solicitar reparos.'}
         chkdskfull=@{Titulo='CHKDSK /f /r';Admin=$true;Impacto='Repara o sistema de arquivos e procura setores defeituosos. Pode exigir agendamento e reinicializacao.'}
         perfillocal=@{Titulo='Verificar perfil local duplicado';Admin=$true;Impacto='Mostra os perfis candidatos. A exclusao de dados locais exige confirmacao.'}
+        autologonenable=@{Titulo='Configurar login automatico';Admin=$true;Impacto='O Windows tentara entrar com a conta escolhida. Use uma conta dedicada com privilegios limitados. Um administrador local pode recuperar o segredo LSA.'}
+        autologondisable=@{Titulo='Desativar login automatico';Admin=$true;Impacto='Desliga o login automatico e remove a credencial usada por ele.'}
     }
     if (-not $map.ContainsKey($Acao)) { throw 'Operacao nao autorizada.' }
     $map[$Acao]
@@ -101,7 +103,8 @@ function Invoke-SuporteOperacao {
     if ($Forcar -and $Acao -notin @('gpuser','gpcomputer')) { throw 'Force so e permitido para GPO.' }
     if (-not $PSCmdlet.ShouldProcess($env:COMPUTERNAME,$info.Titulo)) { return 'Operacao cancelada; nenhuma alteracao executada.' }
     if ($info.Admin -and -not (Test-SuporteAdmin)) { throw 'Esta operacao requer elevacao pelo Windows.' }
-    $mutex=New-Object Threading.Mutex($false,'Local\SuporteTI.Intervencao')
+    $nomeMutex = if ($Acao -in @('autologonenable','autologondisable')) { 'Global\SuporteTI.LoginAutomatico' } else { 'Local\SuporteTI.Intervencao' }
+    $mutex=New-Object Threading.Mutex($false,$nomeMutex)
     $locked=$false
     try {
     try { $locked=$mutex.WaitOne(0) } catch [Threading.AbandonedMutexException] { $locked=$true }
@@ -133,23 +136,32 @@ function Invoke-SuporteOperacao {
         'chkdskread' { Invoke-SuporteVerificacaoDisco }
         'chkdskfull' { Invoke-SuporteVerificacaoDisco -Completa }
         'perfillocal' { Invoke-SuporteLimpezaPerfil }
+        'autologonenable' { Invoke-SuporteLogon }
+        'autologondisable' { Invoke-SuporteLogon -Desativar }
         default { throw 'Operacao requer fluxo de exportacao.' }
     }
     } finally { if($locked){$mutex.ReleaseMutex()};$mutex.Dispose() }
 }
 
 function Request-SuporteOperacao {
-    param([string]$Acao,[string]$Documentos,[switch]$Forcar)
+    param([string]$Acao,[string]$Documentos,[switch]$Forcar,[switch]$SemCores)
     $info=Get-SuporteOperacao $Acao
-    Write-Host ('ACAO: '+$info.Titulo)
-    Write-Host ('IMPACTO: '+$info.Impacto)
-    if ($Forcar) { Write-Host 'FORCE: reaplica todas as configuracoes do escopo selecionado.' }
+    Write-SuporteTela -Titulo $info.Titulo -SemCores:$SemCores
+    $corImpacto = if ($Acao -in 'diskhealth','gpcomputerquery','gpcomputerhtml','sfcverify','dismcheck','dismscan','chkdskread') { 'Cyan' } else { 'Yellow' }
+    Write-SuporteLinha ('IMPACTO: '+$info.Impacto) -Cor $corImpacto -SemCores:$SemCores
+    if ($Acao -in 'gpuser','gpcomputer') {
+        $escopo = if ($Acao -eq 'gpuser') { 'user' } else { 'computer' }
+        Write-SuporteLinha ('Comando: gpupdate.exe ' + ((Get-SuporteArgumentosGpupdate $escopo -Forcar:$Forcar) -join ' ')) -Cor Cyan -SemCores:$SemCores
+    }
+    if ($Forcar) { Write-SuporteLinha 'FORCE: reaplica todas as configuracoes do escopo selecionado.' -Cor Yellow -SemCores:$SemCores }
+    Write-Host ''
     if ($info.Admin -and -not (Test-SuporteAdmin)) {
         $worker=Join-Path $PSScriptRoot 'Elevado.ps1'
         if ($worker.Contains('"')) { throw 'Caminho do projeto invalido.' }
         $doc64=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Documentos))
         $arguments='-NoLogo -NoProfile -ExecutionPolicy RemoteSigned -File "'+$worker+'" -Acao '+$Acao+' -Documentos64 '+$doc64
         if ($Forcar) { $arguments+=' -Forcar' }
+        if ($SemCores) { $arguments+=' -SemCores' }
         Write-Host 'O Windows solicitara elevacao. Use uma conta com direitos nesta estacao.'
         Write-Host 'A operacao selecionada sera executada na janela elevada se voce autorizar no Windows.'
         try {
@@ -161,15 +173,16 @@ function Request-SuporteOperacao {
     }
     $start=(Get-Date).ToString('o')
     try {
-        if($Acao -eq 'gpcomputerhtml'){Request-SuporteExportar -Tipo gphtml -Documentos $Documentos -Escopo Computer;return}
+        if($Acao -eq 'gpcomputerhtml'){Request-SuporteExportar -Tipo gphtml -Documentos $Documentos -Escopo Computer -SemCores:$SemCores;return}
         $output=Invoke-SuporteOperacao -Acao $Acao -Forcar:$Forcar -Confirm:$false
-        if ($Acao -in @('diskhealth','gpcomputerquery')) { Show-SuporteResultado $output; Request-SuporteSalvar $output $Documentos }
+        if ($Acao -in @('diskhealth','gpcomputerquery')) { Show-SuporteResultado $output -SemCores:$SemCores; Request-SuporteSalvar $output $Documentos }
+        elseif ($Acao -in @('autologonenable','autologondisable')) { Write-SuporteLinha ($output | Out-String) -SemCores }
         else {
-            $text=($output | Out-String); Write-Host $text
+            $text=($output | Out-String); Write-SuporteLinha $text -SemCores
             $result=[pscustomobject]@{Computador=$env:COMPUTERNAME;Consulta=$info.Titulo;Inicio=$start;Fim=(Get-Date).ToString('o');Status='Ver conclusao e mensagens nativas';Texto=$text}
             Request-SuporteSalvar $result $Documentos
         }
-    } catch { Write-Host ('Falha: '+$_.Exception.Message); Write-Host 'Nao presumir sucesso; preserve e consulte os logs nativos.' }
+    } catch { Write-SuporteLinha ('Falha: '+$_.Exception.Message) -Cor Red -SemCores:$SemCores; Write-Host 'Consulte os logs nativos para investigar.' }
 }
 
 function Invoke-SuporteExportNative {
@@ -233,21 +246,22 @@ function Export-SuporteArquivo {
 }
 
 function Request-SuporteExportar {
-    param([ValidateSet('gphtml','evtx')][string]$Tipo,[string]$Documentos,[ValidateSet('User','Computer','Escolher')][string]$Escopo='Escolher')
-    if($Tipo -eq 'gphtml' -and $Escopo -eq 'Escolher'){
-        $selection=Read-Host '[1] HTML do usuario atual | [2] HTML do computador (administrador) | [0] Cancelar'
-        if($selection -eq '1'){$Escopo='User'}elseif($selection -eq '2'){$Escopo='Computer'}else{return}
-    }
+    param([ValidateSet('gphtml','evtx')][string]$Tipo,[string]$Documentos,[ValidateSet('User','Computer')][string]$Escopo='User',[switch]$SemCores)
     if($Tipo -eq 'gphtml' -and $Escopo -eq 'Computer' -and -not (Test-SuporteAdmin)){
-        Request-SuporteOperacao gpcomputerhtml $Documentos;return
+        Request-SuporteOperacao gpcomputerhtml $Documentos -SemCores:$SemCores;return
     }
-    Write-Host 'Exportacao pode conter dados internos. Escolha um destino com acesso adequado.'
+    $titulo = if ($Tipo -eq 'evtx') { 'Exportar eventos (EVTX)' }
+        elseif ($Escopo -eq 'Computer') { 'Exportar politicas do computador (HTML)' }
+        else { 'Exportar politicas do usuario atual (HTML)' }
+    Write-SuporteTela -Titulo $titulo -SemCores:$SemCores
+    Write-SuporteLinha 'A exportacao pode conter dados internos. Escolha um destino com acesso adequado.' -Cor Yellow -SemCores:$SemCores
+    Write-Host ''
     if ((Read-Host 'Salvar exportacao? [s/N]') -ine 's') { return }
     $suggested=if ($Documentos) { Join-Path $Documentos 'SuporteTI\Resultados' } else { '' }
-    Write-Host ('Destino padrao: '+$suggested)
+    Write-SuporteLinha ('Destino padrao: '+$suggested) -SemCores
     $path=Read-Host 'Outro destino completo ou Enter para usar o padrao (0 cancela)'
     if ($path -eq '0') { return }; if (-not $path) { $path=$suggested }
     $scopeValue=if($Escopo -eq 'Computer'){'Computer'}else{'User'}
     try { Export-SuporteArquivo -Tipo $Tipo -PastaBase $path -Escopo $scopeValue | ForEach-Object { Write-Host $_ } }
-    catch { Write-Host ('Exportacao falhou: '+$_.Exception.Message) }
+    catch { Write-SuporteLinha ('Exportacao falhou: '+$_.Exception.Message) -Cor Red -SemCores:$SemCores }
 }
