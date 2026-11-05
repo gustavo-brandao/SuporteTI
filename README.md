@@ -2,6 +2,8 @@
 
 Caixa de ferramentas local e portatil para Windows 10/11, escrita em Windows PowerShell 5.1. Menu textual, diagnosticos com limites de duracao e intervencoes selecionadas pelo tecnico.
 
+![Tela inicial do Suporte TI 0.1.21 com o menu de diagnosticos e reparos do Windows](Recursos/tela-inicial.png)
+
 ## Abrir
 
 1. Extraia todo o ZIP em uma pasta no pendrive ou no computador.
