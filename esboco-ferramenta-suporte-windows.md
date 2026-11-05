@@ -1,0 +1,179 @@
+# Esboço — Caixa de ferramentas de suporte Windows
+
+Data: 04/11/2026  
+Status: referência do planejamento aprovado. A implementação e suas limitações estão descritas em README.md.
+
+Na versão 0.1.7, a abertura portátil usa `Suporte TI.exe`, com nome e ícone próprios. O executável encontra o menu PowerShell na mesma pasta do pacote.
+
+A edição pública credita **Gustavo Brandão Gimenez** e usa a [licença MIT](LICENSE) para seu código próprio. A futura edição privada da UCDB terá repositório privado e o crédito **Suporte DTI - UCDB**.
+
+Na versão 0.1.6, o menu ganhou destaques por cor e barra de ocupação de disco. Domínio exibe nome da máquina, ingresso e nome do domínio. A configuração manual de IPv4 inclui máscara, gateway e um ou dois DNS. GPO e Eventos exibem os comandos. Enter no prompt de salvamento equivale a Não.
+
+Atualização aprovada durante os testes (versão 0.1.2): Rede foi reduzida a configuração com `ipconfig /all` e domínio/horário; testes interativos de destino e proxy foram retirados. A seleção da ação substitui a confirmação textual, mantendo a elevação do Windows. Desempenho exibe resumo de CPU/RAM e cinco processos por memória. As seções abaixo preservam o planejamento original; README.md descreve a versão atual.
+
+## Objetivo e tecnologia
+
+Facilitar o atendimento técnico com diagnósticos e intervenções selecionadas, sem exigir que o técnico memorize comandos.
+
+- Projeto próprio, escrito do zero, inspirado na proposta do [Suporte_TI](https://github.com/felipewehcode/Suporte_TI), sem reaproveitar seu código.
+- Windows PowerShell 5.1, com foco em Windows 10/11.
+- Operação apenas na máquina onde o programa estiver aberto.
+- Pasta portátil, acessível por servidor de arquivos ou pendrive.
+- Interface inteiramente na janela do PowerShell.
+- Uso genérico em diferentes redes, com ou sem domínio e proxy.
+
+## Menu principal
+
+```text
+╔══════════════════════════════════════════╗
+║          SUPORTE TÉCNICO WINDOWS         ║
+╚══════════════════════════════════════════╝
+ Computador: LAB-PC01    Acesso: padrão
+
+ [1] Computador
+ [2] Rede
+ [3] Windows Update
+ [4] Políticas de grupo — GPO
+ [5] Impressão
+ [6] Relatórios e eventos
+ [7] Reparos do Windows
+ [8] Sobre o Suporte TI
+
+ [0] Sair
+```
+
+Menus interativos, bem formatados, com navegação consistente, entradas validadas, cores acompanhadas de texto, mensagens claras e indicação de progresso. Seleções inválidas não executam ações. Prever apresentação legível quando caracteres gráficos ou cores não estiverem disponíveis.
+
+Dentro de cada grupo, separar consultas comuns, consultas privilegiadas e intervenções, conforme necessário:
+
+```text
+  WINDOWS UPDATE
+
+  CONSULTAS
+  [1] Diagnosticar falhas
+
+  REQUER ADMINISTRADOR
+  [2] Recriar cache de download
+
+  [0] Voltar
+```
+
+## Funcionalidades
+
+| Grupo | Opções previstas |
+|---|---|
+| Computador | Informações do computador; desempenho de CPU, memória e processos; espaço e saúde dos discos; dispositivos e drivers com problemas; estado dos serviços; programas instalados; falhas recentes. |
+| Rede | Configuração de adaptadores, IP, DHCP, DNS e gateway; resolução de nomes, portas e rotas; latência e perda de pacotes com tentativas limitadas; diagnóstico de sites, aplicativos e proxy; identificação de domínio ou grupo de trabalho, disponibilidade de controlador e sincronização de horário. |
+| Windows Update | Diagnóstico de falhas, KB e códigos de erro, tentativas recentes, serviços, espaço, reinicialização pendente, políticas, origem das atualizações e conectividade; recriação do cache de download como intervenção separada. |
+| GPO | Consultar políticas aplicadas ao usuário e computador com gpresult; exportar HTML; atualizar políticas com gpupdate, oferecendo /force separadamente com aviso. |
+| Impressão | Reiniciar somente o spooler local, com elevação e confirmação, sem excluir trabalhos de impressão. |
+| Relatórios e eventos | Consultar e exportar eventos; reunir resultados do atendimento; preservar registros originais. |
+| Reparos do Windows | Verificação e reparo separados com SFC e DISM, incluindo sfc /scannow e DISM /Online /Cleanup-Image /RestoreHealth. |
+
+### Saúde dos discos
+
+- Seleção simples: Computador → Discos → Verificar saúde.
+- Consulta rápida dos indicadores disponíveis, sem varredura completa, reparo ou teste extenso.
+- Resultado dentro do PowerShell: **sem alertas detectados**, **atenção**, **crítico/degradado** ou **inconclusivo**.
+- Exibir motivos, dados disponíveis e recomendação compatível com as evidências.
+- Não considerar ausência de dados como disco saudável nem inventar porcentagem de saúde.
+- Não usar um limite único de temperatura para todos os modelos.
+- Inclusão do smartctl aprovada condicionalmente: integração simples, consulta rápida e validação de licença, integridade, segurança e compatibilidade antes da distribuição.
+- Componente incluído na pasta do projeto, sem exigir instalação, serviço permanente ou janela externa.
+- Se indisponível ou incompatível, apresentar dados nativos e suas limitações.
+- Rapidez esperada deverá ser confirmada em protótipo e dispositivos representativos; não garantir prazo universal.
+
+### Rede e proxy
+
+- Diagnóstico genérico, sem depender especificamente do Squid.
+- Consultar proxy do usuário, WinHTTP e configuração automática PAC/WPAD.
+- Não alterar configurações de proxy.
+- Distinguir falhas de DNS, conexão, autenticação e HTTPS.
+- Aplicativos podem ter configurações próprias; o teste da ferramenta não comprova o funcionamento de todos eles.
+- Ausência de proxy explícito não comprova ausência de proxy transparente.
+- Confirmar acesso aos destinos testados, sem declarar falta de internet apenas por falha de ping ou de um site.
+- Relatórios podem reunir horário com fuso, origem, destino, proxy e erro para análise na infraestrutura, sem senhas, cookies ou tokens.
+
+### Windows Update e reparos
+
+- Preservar diagnósticos antes de recriar o cache.
+- Recriar o cache de download não significa desinstalar atualizações ou retornar à atualização anterior.
+- Reset completo de componentes fora da versão inicial.
+- SFC e DISM ficam separados do diagnóstico rápido e podem demorar.
+- A fonte de reparo do DISM deverá respeitar a configuração institucional.
+- Não reiniciar a máquina nem encerrar a sessão automaticamente.
+
+## Permissões e confirmações
+
+- Menu inicia sem solicitar administrador.
+- Consultas executadas com os direitos atuais do usuário.
+- Opções privilegiadas claramente identificadas.
+- Intervenções: apresentar ação e impacto → confirmar → solicitar elevação quando necessária → executar → apresentar resultado.
+- Usar a janela oficial do Windows (UAC), sem tela própria de coleta de senha.
+- Aceitar credenciais locais ou do domínio que tenham direitos administrativos na estação, conforme política do Windows/GPO.
+- Exigir senha sempre, inclusive de administradores, depende da política institucional; não será garantido pela aplicação.
+- Preservar o contexto do usuário original para consultas da sessão e sugestão de destino dos relatórios.
+- Não contornar bloqueios institucionais de execução.
+
+## Resultados e armazenamento
+
+- Após cada consulta, perguntar se o técnico deseja salvar o resultado.
+- Sugerir a pasta Documentos do usuário da sessão original, mesmo quando outra conta executar a operação elevada.
+- Exibir o destino e permitir escolher outra pasta, inclusive pendrive ou compartilhamento.
+- Verificar permissão de escrita; se falhar, informar e permitir outro destino.
+- Nunca sobrescrever resultados anteriores.
+- Organizar por computador e atendimento, com data, horário e identificador único:
+
+```text
+Documentos\SuporteTI\Resultados\
+  NOME-DO-PC\
+    DATA_HORA_ID\
+```
+
+Consultas sem opção de salvamento não criam arquivos de resultados pela ferramenta. Comandos do Windows podem produzir seus próprios registros operacionais.
+
+**Sem auditoria própria obrigatória na versão inicial.** Não criar pasta em ProgramData nem modificar permissões para essa finalidade. Preservar os logs nativos do Windows.
+
+## Tratamento de falhas e duração
+
+- Consultas rápidas com tempo limitado e resultados parciais identificados quando necessário.
+- Diferenciar sucesso, falha, cancelamento, acesso negado e informação indisponível.
+- Não anunciar sucesso apenas porque um processo terminou.
+- Reparos demorados devem ter aviso e acompanhamento, sem encerramento forçado por prazo genérico.
+- Cancelamento e negativa de elevação não devem iniciar a intervenção.
+
+## Fora do escopo inicial
+
+- Apagar logs de eventos do Windows.
+- Auditoria própria obrigatória de intervenções.
+- Consultar estado genérico de antivírus.
+- Diagnosticar compartilhamentos de rede.
+- Alterar proxy.
+- Executar comandos em outras máquinas ou em lote.
+- Abrir shell arbitrário como recurso do programa.
+- Otimizador de memória com encerramento de programas ou ações em sequência.
+- Esvaziar lixeira, limpeza ampla de temporários e download livre de arquivos.
+- Reset completo do Windows Update.
+- CHKDSK completo ou reparos de disco dentro da consulta rápida de saúde.
+
+## Próximas validações antes da implementação
+
+1. Homologar edições e versões do Windows, considerando o ciclo de suporte e as políticas institucionais.
+2. Validar em protótipo rapidez, cobertura e distribuição do smartctl.
+3. Definir regras de classificação de saúde com evidências rastreáveis e estado inconclusivo.
+4. Validar execução por compartilhamento e pendrive, incluindo proteção dos componentes usados com elevação.
+5. Detalhar parâmetros e critérios de resultado de cada operação.
+6. Testar usuário comum, elevação com outra conta, cancelamento, falhas, limites de duração e salvamento sem sobrescrita.
+7. Implementar por fases, começando pelo menu e consultas somente leitura, após validação do planejamento.
+
+## Referências técnicas consultadas
+
+- [Windows PowerShell 5.1](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_windows_powershell_5.1)
+- [UAC e elevação](https://learn.microsoft.com/windows/security/identity-protection/user-account-control/how-user-account-control-works)
+- [Contadores de confiabilidade de armazenamento](https://learn.microsoft.com/en-us/powershell/module/storage/get-storagereliabilitycounter)
+- [Saúde NVMe pelas APIs do Windows](https://learn.microsoft.com/en-us/windows/win32/fileio/working-with-nvme-devices)
+- [Repositório oficial smartmontools](https://github.com/smartmontools/smartmontools)
+- [Recuperação de componentes do Windows Update](https://learn.microsoft.com/en-us/troubleshoot/windows-client/installing-updates-features-roles/additional-resources-for-windows-update)
+- [gpresult](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/gpresult)
+- [gpupdate](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/gpupdate)
+- [Reparo da imagem do Windows](https://learn.microsoft.com/en-us/windows-hardware/manufacture/desktop/repair-a-windows-image?view=windows-11)

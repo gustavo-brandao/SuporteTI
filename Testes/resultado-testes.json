@@ -1,0 +1,1070 @@
+﻿{
+    "Data":  "2026-11-05T09:29:16.5848859-04:00",
+    "PowerShell":  "5.1.26100.9818",
+    "Tipo":  "Simulacoes controladas; consultas reais apenas com switch",
+    "Testes":  [
+                   {
+                       "Opcao":  "dism",
+                       "Teste":  "dismcheck - cancelar nao executa",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dism",
+                       "Teste":  "dismcheck - despacho autorizado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dism",
+                       "Teste":  "dismcheck - falha nao vira sucesso",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dism",
+                       "Teste":  "dismscan - cancelar nao executa",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dism",
+                       "Teste":  "dismscan - despacho autorizado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dism",
+                       "Teste":  "dismscan - falha nao vira sucesso",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dism",
+                       "Teste":  "dismrestore - cancelar nao executa",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dism",
+                       "Teste":  "dismrestore - despacho autorizado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dism",
+                       "Teste":  "dismrestore - falha nao vira sucesso",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "cache",
+                       "Teste":  "cache - cancelar nao executa",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpupdateuser",
+                       "Teste":  "gpuser - cancelar nao executa",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpupdateuser",
+                       "Teste":  "gpuser - despacho autorizado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpupdateuser",
+                       "Teste":  "gpuser - falha nao vira sucesso",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "spooler",
+                       "Teste":  "spooler - cancelar nao executa",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "spooler",
+                       "Teste":  "spooler - despacho autorizado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "spooler",
+                       "Teste":  "spooler - falha nao vira sucesso",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "sfc",
+                       "Teste":  "sfcverify - cancelar nao executa",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "sfc",
+                       "Teste":  "sfcverify - despacho autorizado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "sfc",
+                       "Teste":  "sfcverify - falha nao vira sucesso",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "sfc",
+                       "Teste":  "sfcrepair - cancelar nao executa",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "sfc",
+                       "Teste":  "sfcrepair - despacho autorizado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "sfc",
+                       "Teste":  "sfcrepair - falha nao vira sucesso",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "chkdsk",
+                       "Teste":  "chkdskread - cancelar nao executa",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "chkdsk",
+                       "Teste":  "chkdskread - despacho autorizado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "chkdsk",
+                       "Teste":  "chkdskread - falha nao vira sucesso",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "chkdsk",
+                       "Teste":  "chkdskfull - cancelar nao executa",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "chkdsk",
+                       "Teste":  "chkdskfull - despacho autorizado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "chkdsk",
+                       "Teste":  "chkdskfull - falha nao vira sucesso",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpupdatecomputer",
+                       "Teste":  "gpcomputer - cancelar nao executa",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpupdatecomputer",
+                       "Teste":  "gpcomputer - despacho autorizado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpupdatecomputer",
+                       "Teste":  "gpcomputer - falha nao vira sucesso",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "cache",
+                       "Teste":  "renomeia somente Download e restaura estados anteriores",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "cache",
+                       "Teste":  "manutencao ativa bloqueia sem parar servicos",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpupdateuser",
+                       "Teste":  "force explicito mantem escopo do usuario",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "sistema",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "sistema",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "desempenho",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "desempenho",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "discos",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "discos",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dispositivos",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dispositivos",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "servicos",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "servicos",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "programas",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "programas",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "rede",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "rede",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dominio",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dominio",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "update",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "update",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpusuario",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpusuario",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpcomputador",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpcomputador",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "eventos",
+                       "Teste":  "consulta retorna secoes e texto com dados controlados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "eventos",
+                       "Teste":  "falha ou acesso negado fica explicito e nao interrompe interface",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "rede",
+                       "Teste":  "menu exibe consultas e mudancas IPv4 separadas",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "rede",
+                       "Teste":  "opcoes removidas nao podem ser invocadas pela API",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "desempenho",
+                       "Teste":  "resumo limita a cinco processos e remove CPU acumulada",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dominio",
+                       "Teste":  "exibe somente nome, ingresso e dominio",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dispositivos",
+                       "Teste":  "oculta codigo 24 somente quando a ausencia esta confirmada",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "ultimo",
+                       "Teste":  "Enter no primeiro prompt nao salva nem escolhe destino",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "ping",
+                       "Teste":  "sucesso, perda parcial e falta de resposta recebem cores distintas",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "sistema",
+                       "Teste":  "inventario inclui CPU e RAM atuais",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "monitor",
+                       "Teste":  "leituras da barra correspondem aos valores do sistema",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "ping",
+                       "Teste":  "aceita URL e consulta apenas o host",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "ping",
+                       "Teste":  "recusa destino com argumentos",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "velocidade",
+                       "Teste":  "mede amostra completa e recusa amostra incompleta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "velocidade",
+                       "Teste":  "upload envia somente a amostra de 4 MiB e aceita HTTP 204",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "netdhcp",
+                       "Teste":  "configura somente o adaptador escolhido (simulado)",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "netstatic",
+                       "Teste":  "configura somente o adaptador escolhido (simulado)",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "netstatic",
+                       "Teste":  "rejeita gateway fora da sub-rede e enderecos reservados",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "discos",
+                       "Teste":  "sem dados e inconclusivo",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "discos",
+                       "Teste":  "ocupacao exibe espaco usado e percentual",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "chromecache",
+                       "Teste":  "remove arquivos de cache e preserva dados dos perfis em pasta de teste",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "chromecache",
+                       "Teste":  "bloqueia a limpeza enquanto o Chrome estiver aberto",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "chromecache",
+                       "Teste":  "preserva pasta externa apontada por juncao no cache",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "discos",
+                       "Teste":  "Unhealthy prevalece sobre desgaste e erros",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "discos",
+                       "Teste":  "desgaste 100 requer atencao",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "SMART aprovado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "SMART falhou",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "NVMe critico",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "ATA setores pendentes",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "dados ausentes",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "nao admin nao executa leitura elevada",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "ultimo",
+                       "Teste":  "salvamentos repetidos nao sobrescrevem",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "ultimo",
+                       "Teste":  "caminho relativo recusado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gphtml",
+                       "Teste":  "exportacao gera arquivos e manifesto sem sobrescrever (simulado)",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gphtml",
+                       "Teste":  "cancelar exportacao nao chama gravacao",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gphtml",
+                       "Teste":  "destino relativo bloqueado antes do processo nativo",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "evtx",
+                       "Teste":  "exportacao gera arquivos e manifesto sem sobrescrever (simulado)",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "evtx",
+                       "Teste":  "cancelar exportacao nao chama gravacao",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "evtx",
+                       "Teste":  "destino relativo bloqueado antes do processo nativo",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "operacao arbitraria recusada",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "consulta arbitraria recusada",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "forcar fora de GPO recusado",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "perfillocal",
+                       "Teste":  "relaciona .bak e perfil numerado pelo mesmo SID",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "perfillocal",
+                       "Teste":  "procedimento simulado: cancelar",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "perfillocal",
+                       "Teste":  "procedimento simulado: falhar",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "perfillocal",
+                       "Teste":  "procedimento simulado: concluir",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "spooler - usuario comum bloqueado antes do comando",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "cache - usuario comum bloqueado antes do comando",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "gpcomputer - usuario comum bloqueado antes do comando",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "sfcverify - usuario comum bloqueado antes do comando",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "sfcrepair - usuario comum bloqueado antes do comando",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "dismcheck - usuario comum bloqueado antes do comando",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "dismscan - usuario comum bloqueado antes do comando",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "dismrestore - usuario comum bloqueado antes do comando",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "diskhealth - usuario comum bloqueado antes do comando",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "gpcomputerquery - usuario comum bloqueado antes do comando",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "selecao de acao solicita UAC sem confirmacao textual extra",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "elevacao negada nao executa comando e preserva destino original",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "iniciador",
+                       "Teste":  "politica temporaria RemoteSigned no iniciador",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "iniciador",
+                       "Teste":  "sem mudanca persistente ou desbloqueio automatico",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "integridade divergente bloqueia smartctl",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "sistema",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "desempenho",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "monitor",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "discos",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "diskhealth",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dispositivos",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "servicos",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "programas",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "chromecache",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "rede",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dominio",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "ping",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "velocidade",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "netdhcp",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "netstatic",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "update",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "cache",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpusuario",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpcomputador",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gphtml",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpupdateuser",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "gpupdatecomputer",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "spooler",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "eventos",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "ultimo",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "evtx",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "sfc",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "dism",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "chkdsk",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "perfillocal",
+                       "Teste":  "navegacao do menu despacha a opcao correta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "menu ignora selecoes invalidas sem executar consulta",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   }
+               ],
+    "Cobertura":  [
+                      {
+                          "Opcao":  "sistema",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "desempenho",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "monitor",
+                          "Testes":  2,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "discos",
+                          "Testes":  7,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "diskhealth",
+                          "Testes":  8,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "dispositivos",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "servicos",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "programas",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "falhas",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "chromecache",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "rede",
+                          "Testes":  5,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "dominio",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "ping",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "velocidade",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "netdhcp",
+                          "Testes":  2,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "netstatic",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "update",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "cache",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "gpusuario",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "gpcomputador",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "gphtml",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "gpupdateuser",
+                          "Testes":  5,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "gpupdatecomputer",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "spooler",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "eventos",
+                          "Testes":  3,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "ultimo",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "evtx",
+                          "Testes":  4,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "sfc",
+                          "Testes":  7,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "dism",
+                          "Testes":  10,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "chkdsk",
+                          "Testes":  7,
+                          "Cobertura":  true
+                      },
+                      {
+                          "Opcao":  "perfillocal",
+                          "Testes":  5,
+                          "Cobertura":  true
+                      }
+                  ]
+}
