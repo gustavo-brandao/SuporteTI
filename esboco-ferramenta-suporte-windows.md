@@ -7,7 +7,9 @@ Na prévia 0.1.22, a janela elevada deixa de executar os scripts diretamente da 
 
 Na prévia 0.1.21, grupos, escolhas, operações e consultas usam telas com títulos próprios. A consulta manual de código separa família, digitação e resultado. O resultado fica disponível para leitura ou salvamento antes de voltar. As opções de alteração recebem rótulos, e escolhas técnicas como DISM e CHKDSK trazem explicações curtas.
 
-Na CLI, a lista de códigos da triagem oferece atalhos numerados para a explicação detalhada. O atalho usa a origem registrada pelo Windows. Para códigos avulsos, a pesquisa consulta as famílias automaticamente e exibe todas as correspondências quando o valor tem mais de um significado.
+Na prévia 0.1.23 da CLI, a lista de códigos da triagem oferece atalhos numerados para a explicação detalhada. O atalho usa a origem registrada pelo Windows. Para códigos avulsos, a pesquisa consulta as famílias automaticamente e exibe todas as correspondências quando o valor tem mais de um significado.
+
+As prévias da CLI usam tags `vX.Y.Z`. Cada release pública reúne o ZIP portátil, seu SHA-256 e as notas da versão. O README aponta para o ZIP publicado e identifica separadamente a versão do código na `main`.
 
 Na prévia 0.1.20, a triagem automática apresenta os códigos distintos encontrados nos registros consultados e suas explicações, inclusive quando a ocorrência principal não tem um código de falha identificado. A consulta por digitação continua no mesmo submenu.
 

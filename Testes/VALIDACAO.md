@@ -7,7 +7,7 @@ O script `Executar-Testes.ps1` verifica cada opcao do catalogo pelo menos duas v
 - Diagnosticos: retorno com dados controlados e erro/acesso negado, mais smoke real opcional.
 - Falhas recentes: eventos simulados verificam agrupamento de reinicio e tela azul, interpretacao do codigo decimal de Kernel-Power, reinicio sem causa identificada, separacao entre falha de aplicativo e tela azul, traducao de excecao de aplicativo, codigo desconhecido e exclusao de pistas posteriores a inicializacao.
 - Catalogo de falhas: valida formato, tamanho, nomes e referencias nas quatro familias, preservacao das explicacoes revisadas e exibicao da ocorrencia quando o catalogo fica indisponivel. A consulta manual cobre codigo Win32 decimal, HRESULT decimal com sinal e codigo de parada hexadecimal.
-- Navegacao de falhas: o mesmo submenu despacha a analise automatica e a consulta manual. Zero e Enter voltam sem consultar, inclusive na escolha de familia e na entrada do codigo.
+- Navegacao de falhas: o mesmo submenu despacha a analise automatica e a consulta manual. A lista de falhas oferece atalhos para consultar o codigo com a familia do evento. Na consulta manual, basta digitar o codigo. Zero e Enter voltam sem consultar.
 - Layout: verifica a sequencia de telas na consulta por codigo, opcoes e rotulos em 24 colunas, ausencia de cores forcadas com `-SemCores` e tons para fundos claro e escuro.
 - Busca automatica: verifica que um evento de ID 0 sem codigo de falha nao oculta registros com codigo, que um numero no texto da mensagem nao e tratado como codigo e que codigos repetidos aparecem uma vez no resumo.
 - Spooler, GPO, SFC e DISM: cancelamento, despacho dos argumentos e falhas, com comandos administrativos simulados.

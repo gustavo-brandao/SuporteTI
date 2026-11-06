@@ -2,12 +2,11 @@
 
 Caixa de ferramentas local e portatil para Windows 10/11, escrita em Windows PowerShell 5.1. Menu textual, diagnosticos com limites de duracao e intervencoes selecionadas pelo tecnico.
 
-| Edicao de terminal (CLI) | Versao |
-| --- | --- |
-| Codigo atual na branch `main` | [**0.1.22**](Modulos/SuporteTI.psd1#L3) |
-| Ultima previa com ZIP publicado | [**0.1.21**](https://github.com/gustavo-brandao/SuporteTI/releases/tag/v0.1.21) |
+**[Baixar Suporte TI CLI v0.1.23 (ZIP portatil)](https://github.com/gustavo-brandao/SuporteTI/releases/download/v0.1.23/SuporteTI-CLI-0.1.23-portatil.zip)**
 
-![Tela inicial do Suporte TI 0.1.21 com o menu de diagnosticos e reparos do Windows](Recursos/tela-inicial.png)
+Versao do codigo na branch `main`: [**0.1.23**](Modulos/SuporteTI.psd1#L3). As [notas e o SHA-256 da v0.1.23](https://github.com/gustavo-brandao/SuporteTI/releases/tag/v0.1.23) e o [historico de versoes](https://github.com/gustavo-brandao/SuporteTI/releases) ficam em **Releases**.
+
+![Exemplo do menu textual do Suporte TI na versao 0.1.21](Recursos/tela-inicial.png)
 
 ## Abrir
 

@@ -1,5 +1,9 @@
 # Resultado da verificacao
 
+## Previa 0.1.23
+
+O iniciador e a DLL foram recompilados a partir do código da edição pública. A suíte do Windows PowerShell 5.1 passou com **204 testes e zero falhas** usando os binários recompilados. O pacote portátil inclui os dois fluxos de consulta sem escolha manual de família e acompanha um arquivo SHA-256 em Releases.
+
 ## Atalho da triagem na CLI
 
 No Windows PowerShell 5.1, **203 testes passaram sem falhas**. A suíte conferiu a separação entre texto e códigos estruturados, a escolha entre códigos iguais de famílias diferentes, o atalho para salvar e a rejeição de uma opção fora da lista. Uma execução de `Iniciar.ps1` com um evento simulado do Kernel-Power exibiu `[1] Consultar 0x000000EF (Tela azul)`. Digitar **1** abriu diretamente a explicação de `CRITICAL_PROCESS_DIED`.

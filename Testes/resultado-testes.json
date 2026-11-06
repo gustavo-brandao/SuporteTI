@@ -1,5 +1,5 @@
 ﻿{
-    "Data":  "2026-11-06T09:24:09.7699583-04:00",
+    "Data":  "2026-11-06T15:27:18.7524541-04:00",
     "PowerShell":  "5.1.26100.9818",
     "Tipo":  "Simulacoes controladas; consultas reais apenas com switch",
     "Testes":  [
@@ -401,6 +401,12 @@
                    },
                    {
                        "Opcao":  "falhas",
+                       "Teste":  "entrega codigos estruturados separadamente do relatorio",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "falhas",
                        "Teste":  "catalogo indexa as quatro familias e preserva as explicacoes revisadas",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
@@ -408,6 +414,12 @@
                    {
                        "Opcao":  "codigofalha",
                        "Teste":  "decodifica decimal, HRESULT negativo e parada com referencia",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "codigofalha",
+                       "Teste":  "pesquisa sem familia mostra correspondencias e valida a entrada",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
                    },
@@ -859,7 +871,7 @@
                        "Opcao":  "seguranca",
                        "Teste":  "comando elevado usa aspas simples, tamanho limitado e entradas validadas",
                        "Resultado":  "PASSOU",
-                       "Detalhe":  "Tamanho do comando: 2705"
+                       "Detalhe":  "Tamanho do comando: 2801"
                    },
                    {
                        "Opcao":  "seguranca",
@@ -1192,6 +1204,12 @@
                        "Detalhe":  ""
                    },
                    {
+                       "Opcao":  "falhas",
+                       "Teste":  "atalho numerado consulta o codigo com a familia do evento",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
                        "Opcao":  "seguranca",
                        "Teste":  "menu ignora selecoes invalidas sem executar consulta",
                        "Resultado":  "PASSOU",
@@ -1199,7 +1217,7 @@
                    },
                    {
                        "Opcao":  "falhas",
-                       "Teste":  "consulta por codigo separa as telas de familia, entrada e resultado",
+                       "Teste":  "consulta por codigo pede apenas o numero antes do resultado",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
                    },
@@ -1248,12 +1266,12 @@
                       },
                       {
                           "Opcao":  "falhas",
-                          "Testes":  13,
+                          "Testes":  15,
                           "Cobertura":  true
                       },
                       {
                           "Opcao":  "codigofalha",
-                          "Testes":  2,
+                          "Testes":  3,
                           "Cobertura":  true
                       },
                       {
