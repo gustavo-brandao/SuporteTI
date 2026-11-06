@@ -58,9 +58,11 @@ Para falhas de aplicativos, o resumo traduz os codigos de excecao conhecidos e m
 
 A analise automatica tambem lista ate seis codigos distintos encontrados nos registros consultados, alem do codigo da ocorrencia principal quando houver. Para cada codigo, mostra data, origem e explicacao quando disponivel. A lista usa os campos de parada, excecao de aplicativo, NTSTATUS, Win32 e HRESULT identificados no registro. O ID do evento fica nos detalhes e um registro sem codigo de falha identificado, mesmo que seja o mais recente, nao impede a busca pelos demais.
 
+Selecione o numero ao lado de um dos codigos encontrados para abrir a explicacao completa. A triagem preenche o codigo e usa a familia identificada no evento. Na mesma lista, use **S** para salvar o relatorio ou **0** ou **Enter** para voltar ao submenu.
+
 O [catalogo de falhas](Modulos/CatalogoFalhas.json) acompanha o pacote e pode ser consultado offline. Contem 9.608 entradas em cerca de 955 KB, separadas nas familias `Paradas`, `Excecoes` (NTSTATUS e excecao CLR), `Win32` e `HRESULT`. Cada entrada tem codigo, nome tecnico e fonte oficial. As 51 entradas com texto proprio tambem oferecem explicacao e pista de investigacao. Nas demais, o Suporte TI tenta ler a mensagem em portugues do proprio Windows para NTSTATUS, Win32 e HRESULT. Quando ela nao esta disponivel, o resultado conserva o nome tecnico e a referencia que estiverem no catalogo. Se o arquivo estiver indisponivel, a triagem continua exibindo os eventos e codigos.
 
-No mesmo submenu, **[2] Consultar um codigo de erro** permite escolher a familia e digitar o codigo decimal ou hexadecimal com prefixo `0x`. NTSTATUS e HRESULT tambem aceitam o decimal negativo de 32 bits. A familia deve corresponder a origem do codigo. A analise automatica usa as familias de tela azul e excecao de aplicativo. As duas consultas voltam ao submenu depois do resultado. Para acrescentar uma entrada ao JSON, mantenha oito digitos hexadecimais sem `0x` e vincule o codigo a uma fonte em `Fontes`.
+No mesmo submenu, **[2] Consultar um codigo de erro** pede apenas o codigo decimal, decimal negativo de 32 bits ou hexadecimal com prefixo `0x`. A pesquisa verifica as familias automaticamente e mostra os significados encontrados. Se houver mais de uma correspondencia, use a origem do erro para interpretar o resultado. Para acrescentar uma entrada ao JSON, mantenha oito digitos hexadecimais sem `0x` e vincule o codigo a uma fonte em `Fontes`.
 
 ## Seguranca e comportamento
 

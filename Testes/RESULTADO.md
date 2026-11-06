@@ -1,5 +1,11 @@
 # Resultado da verificacao
 
+## Atalho da triagem na CLI
+
+No Windows PowerShell 5.1, **203 testes passaram sem falhas**. A suíte conferiu a separação entre texto e códigos estruturados, a escolha entre códigos iguais de famílias diferentes, o atalho para salvar e a rejeição de uma opção fora da lista. Uma execução de `Iniciar.ps1` com um evento simulado do Kernel-Power exibiu `[1] Consultar 0x000000EF (Tela azul)`. Digitar **1** abriu diretamente a explicação de `CRITICAL_PROCESS_DIED`.
+
+Com a pesquisa de códigos avulsos sem seleção de família, **204 testes passaram sem falhas**. No terminal, digitar `5` exibiu `ERROR_ACCESS_DENIED` e `INVALID_PROCESS_ATTACH_ATTEMPT` com o aviso de ambiguidade. A suíte também verificou HRESULT decimal negativo, código sem correspondência e entrada fora do intervalo de 32 bits.
+
 ## Previa 0.1.22
 
 Duas rodadas no Windows PowerShell 5.1 passaram com **198 testes e zero falhas em cada rodada**. Os cinco testes novos executaram a entrada da janela elevada sem UAC sobre uma cópia do pacote: a operação rodou a partir da cópia protegida em `Windows\Temp`, com argumentos e código de saída preservados, e a cópia foi removida. Um `Elevado.ps1` alterado depois da abertura foi bloqueado sem executar. O comando elevado de produção tem cerca de 2.500 caracteres.

@@ -189,7 +189,7 @@ function New-FixtureEventoFalha {
 }
 
 function Invoke-FixtureFalhas {
-    param([object[]]$Eventos)
+    param([object[]]$Eventos,[switch]$IncluirCodigos)
     function Get-WinEvent {
         param($FilterHashtable,$MaxEvents,$ErrorAction)
         $Eventos | Where-Object {
@@ -198,7 +198,8 @@ function Invoke-FixtureFalhas {
             (-not $FilterHashtable.ProviderName -or $_.ProviderName -eq $FilterHashtable.ProviderName)
         }
     }
-    & $collector -Id falhas | Out-String
+    if ($IncluirCodigos) { & $collector -Id falhas -Opcoes @{IncluirCodigos=$true} }
+    else { & $collector -Id falhas | Out-String }
 }
 
 Test-Case falhas 'agrupa reinicio e tela azul com codigo explicado e contexto anterior' {
@@ -266,6 +267,18 @@ Test-Case falhas 'lista codigos de ocorrencias anteriores sem entrada manual' {
         $texto -match 'Codigo de parada 0x00000116' -and $texto -match 'recuperacao falhou') 'Um codigo ou sua explicacao ficou de fora da triagem automatica.'
 }
 
+Test-Case falhas 'entrega codigos estruturados separadamente do relatorio' {
+    $hora = Get-Date
+    $win32 = New-FixtureEventoFalha Application 'Servico de teste' 9 10 $hora '<Data Name="Win32ErrorCode">5</Data>'
+    $parada = New-FixtureEventoFalha System BugCheck 1001 9 ($hora.AddMinutes(-40)) '<Data Name="param1">0x00000005</Data>'
+    $dados = @(Invoke-FixtureFalhas @($win32,$parada) -IncluirCodigos)
+    $codigos = @($dados | Where-Object { $_ -isnot [string] })
+    Assert-True ($codigos.Count -eq 2 -and ($codigos.Familia -join ',') -eq 'Paradas,Win32' -and
+        ($codigos.Codigo -join ',') -eq '0x00000005,0x00000005') 'Codigos iguais de familias diferentes perderam a origem.'
+    $texto = ($dados | Where-Object { $_ -is [string] }) -join "`n"
+    Assert-True ($texto -match 'Detalhes tecnicos' -and $texto -notmatch 'Familia=|Codigo=') 'O relatorio perdeu os detalhes ou incluiu metadados.'
+}
+
 Test-Case falhas 'catalogo indexa as quatro familias e preserva as explicacoes revisadas' {
     $arquivo = Get-Item -LiteralPath (Join-Path $root 'Modulos\CatalogoFalhas.json')
     $dados = Get-Content -LiteralPath $arquivo.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -292,6 +305,18 @@ Test-Case codigofalha 'decodifica decimal, HRESULT negativo e parada com referen
         $hresult -match '0x80070005' -and $hresult -match 'E_ACCESSDENIED' -and
         $parada -match 'BAD_POOL_CALLER' -and $parada -match 'learn.microsoft.com') 'O codigo foi interpretado na familia errada ou perdeu a referencia.'
     Assert-True ($familiaErrada -match 'Descricao em portugues indisponivel' -and $familiaErrada -notmatch 'STATUS_ACCESS_VIOLATION') 'A consulta misturou NTSTATUS e HRESULT.'
+}
+
+Test-Case codigofalha 'pesquisa sem familia mostra correspondencias e valida a entrada' {
+    $ambiguo = & $collector -Id codigofalha -Opcoes @{Codigo='5'} | Out-String
+    $hresult = & $collector -Id codigofalha -Opcoes @{Codigo='-2147024891'} | Out-String
+    $desconhecido = & $collector -Id codigofalha -Opcoes @{Codigo='0xFFFFFFFF'} | Out-String
+    $invalido = & $collector -Id codigofalha -Opcoes @{Codigo='4294967296'} | Out-String
+    Assert-True ($ambiguo -match 'mais de um significado' -and $ambiguo -match 'ERROR_ACCESS_DENIED' -and
+        $ambiguo -match 'INVALID_PROCESS_ATTACH_ATTEMPT') 'A pesquisa escondeu uma interpretacao do mesmo codigo.'
+    Assert-True ($hresult -match '0x80070005' -and $hresult -match 'E_ACCESSDENIED' -and $hresult -notmatch 'Win32 \|') 'A pesquisa misturou o HRESULT com Win32.'
+    Assert-True ($desconhecido -match '0xFFFFFFFF: codigo sem correspondencia' -and
+        $invalido -match 'Informe um numero decimal de 32 bits') 'A pesquisa nao distinguiu codigo desconhecido de entrada invalida.'
 }
 
 Test-Case falhas 'catalogo indisponivel preserva o codigo de parada e a ocorrencia' {
@@ -1182,7 +1207,7 @@ foreach($menuItem in Get-SuporteCatalogo){
             if($id -in @('gpupdateuser','gpupdatecomputer','gphtml','sfc','dism','chkdsk','autologon')){$script:MenuQueue.Enqueue('1')}
             if($id -eq 'ping'){$script:MenuQueue.Enqueue('127.0.0.1')}
             if($id -eq 'falhas'){$script:MenuQueue.Enqueue('1')}
-            if($id -eq 'codigofalha'){$script:MenuQueue.Enqueue('2');$script:MenuQueue.Enqueue('3');$script:MenuQueue.Enqueue('5')}
+            if($id -eq 'codigofalha'){$script:MenuQueue.Enqueue('2');$script:MenuQueue.Enqueue('5')}
             if($id -ne 'mapaocupacao'){$script:MenuQueue.Enqueue('')}
             if($id -in 'falhas','codigofalha'){$script:MenuQueue.Enqueue('0')}
             foreach($key in @('0','0')){$script:MenuQueue.Enqueue($key)}
@@ -1197,7 +1222,7 @@ foreach($menuItem in Get-SuporteCatalogo){
             function Request-SuporteSalvar {}
             function Request-SuporteOperacao {param($Acao,$Documentos,[switch]$Forcar);$script:MenuCalls.Add($Acao)}
             function Request-SuporteExportar {param($Tipo,$Documentos);$script:MenuCalls.Add($Tipo)}
-            function Invoke-SuporteConsulta {param($Id,$Opcoes,$TimeoutSeconds);$script:MenuCalls.Add($Id);[pscustomobject]@{Status='Teste';Texto='Simulado'}}
+            function Invoke-SuporteConsulta {param($Id,$Opcoes,$TimeoutSeconds);$script:MenuCalls.Add($Id);[pscustomobject]@{Status='Teste';Texto='Simulado';Codigos=@()}}
             Start-SuporteMenu -ModuleRoot $docs -SemCores
             [pscustomobject]@{Calls=$script:MenuCalls.ToArray();Restantes=$script:MenuQueue.Count}
         } $menuItem.Id $root
@@ -1210,7 +1235,7 @@ foreach($menuItem in Get-SuporteCatalogo){
 Test-Case falhas '0 e Enter voltam no submenu de falhas sem consultar' {
     $calls = & $module {
         $script:MenuQueue = New-Object 'System.Collections.Generic.Queue[string]'
-        foreach($key in @('1','8','2','3','','2','0','0','8','','0','0')){$script:MenuQueue.Enqueue($key)}
+        foreach($key in @('1','8','2','','2','0','0','8','','0','0')){$script:MenuQueue.Enqueue($key)}
         $script:CallCount = 0
         function Read-Host { $script:MenuQueue.Dequeue() }
         function Write-Host {}; function Clear-Host {}; function Write-SuporteTela {}
@@ -1219,6 +1244,31 @@ Test-Case falhas '0 e Enter voltam no submenu de falhas sem consultar' {
         [pscustomobject]@{ Calls=$script:CallCount; Restantes=$script:MenuQueue.Count }
     }
     Assert-True ($calls.Calls -eq 0 -and $calls.Restantes -eq 0) 'O retorno executou uma consulta ou voltou para o menu errado.'
+}
+
+Test-Case falhas 'atalho numerado consulta o codigo com a familia do evento' {
+    $chamadas = & $module {
+        $fila = New-Object 'System.Collections.Generic.Queue[string]'
+        foreach ($key in @('1','8','1','s','3','2','0','0','0','0')) { $fila.Enqueue($key) }
+        function Read-Host { $fila.Dequeue() }
+        function Write-Host {}
+        function Write-SuporteTela {}
+        function Request-SuporteSalvar { param($Resultado,$Documentos,[switch]$Confirmado); if ($Confirmado) { 'Salvar ' + $Resultado.Texto } }
+        function Show-SuporteResultado { param($Resultado); $Resultado.Texto }
+        function Invoke-SuporteConsulta {
+            param($Id,$Opcoes,$TimeoutSeconds)
+            if ($Id -eq 'falhas' -and $Opcoes.IncluirCodigos) {
+                return [pscustomobject]@{Texto='Triagem';Codigos=@(
+                    [pscustomobject]@{Familia='Paradas';Codigo='0x00000005'}
+                    [pscustomobject]@{Familia='Win32';Codigo='0x00000005'}
+                )}
+            }
+            [pscustomobject]@{Texto=('{0}/{1}/{2}' -f $Id,$Opcoes.Familia,$Opcoes.Codigo)}
+        }
+        Start-SuporteMenu -ModuleRoot 'C:\Teste' -SemCores
+        $fila.Count
+    }
+    Assert-True (($chamadas -join '|') -eq 'Triagem|Salvar Triagem|codigofalha/Win32/0x00000005|0') 'O atalho perdeu a opcao de salvar, consultou a origem errada ou nao ignorou a selecao invalida.'
 }
 
 Test-Case seguranca 'menu ignora selecoes invalidas sem executar consulta' {
@@ -1235,15 +1285,19 @@ Test-Case seguranca 'menu ignora selecoes invalidas sem executar consulta' {
     Assert-True ($calls -eq 0) 'Selecao invalida executou consulta.'
 }
 
-Test-Case falhas 'consulta por codigo separa as telas de familia, entrada e resultado' {
+Test-Case falhas 'consulta por codigo pede apenas o numero antes do resultado' {
     $telas = & $module {
         $script:MenuQueue = New-Object 'System.Collections.Generic.Queue[string]'
         $script:TelasTeste = New-Object 'System.Collections.Generic.List[string]'
-        foreach ($key in @('1','8','2','3','5','0','0','0','0')) { $script:MenuQueue.Enqueue($key) }
+        foreach ($key in @('1','8','2','5','0','0','0','0')) { $script:MenuQueue.Enqueue($key) }
         function Read-Host { $script:MenuQueue.Dequeue() }
         function Write-Host {}
         function Write-SuporteTela { param($Titulo,[switch]$SemCores); $script:TelasTeste.Add('Tela: ' + $Titulo) }
-        function Invoke-SuporteConsulta { [pscustomobject]@{ Status='Concluido'; Texto='Simulado' } }
+        function Invoke-SuporteConsulta {
+            param($Id,$Opcoes,$TimeoutSeconds)
+            if ($Id -ne 'codigofalha' -or $Opcoes.Codigo -ne '5' -or $Opcoes.ContainsKey('Familia')) { throw 'Consulta esperada somente pelo codigo.' }
+            [pscustomobject]@{ Status='Concluido'; Texto='Simulado' }
+        }
         function Show-SuporteResultado { $script:TelasTeste.Add('Resultado') }
         function Request-SuporteSalvar {}
         Start-SuporteMenu -ModuleRoot 'C:\Teste' -SemCores
@@ -1251,8 +1305,7 @@ Test-Case falhas 'consulta por codigo separa as telas de familia, entrada e resu
     }
     $esperado = @(
         'Tela: Menu principal','Tela: Computador','Tela: Falhas recentes e codigos de erro',
-        'Tela: Consultar um codigo de erro','Tela: Consultar um codigo de erro | Win32',
-        'Tela: Consultar um codigo de erro | Win32','Resultado','Tela: Falhas recentes e codigos de erro',
+        'Tela: Consultar um codigo de erro','Tela: Consultar um codigo de erro','Resultado','Tela: Falhas recentes e codigos de erro',
         'Tela: Computador','Tela: Menu principal'
     )
     Assert-True (($telas -join '|') -eq ($esperado -join '|')) 'A consulta acumulou etapas ou retornou a uma tela incorreta.'

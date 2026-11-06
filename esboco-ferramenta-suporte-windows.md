@@ -7,6 +7,8 @@ Na prévia 0.1.22, a janela elevada deixa de executar os scripts diretamente da 
 
 Na prévia 0.1.21, grupos, escolhas, operações e consultas usam telas com títulos próprios. A consulta manual de código separa família, digitação e resultado. O resultado fica disponível para leitura ou salvamento antes de voltar. As opções de alteração recebem rótulos, e escolhas técnicas como DISM e CHKDSK trazem explicações curtas.
 
+Na CLI, a lista de códigos da triagem oferece atalhos numerados para a explicação detalhada. O atalho usa a origem registrada pelo Windows. Para códigos avulsos, a pesquisa consulta as famílias automaticamente e exibe todas as correspondências quando o valor tem mais de um significado.
+
 Na prévia 0.1.20, a triagem automática apresenta os códigos distintos encontrados nos registros consultados e suas explicações, inclusive quando a ocorrência principal não tem um código de falha identificado. A consulta por digitação continua no mesmo submenu.
 
 Na prévia 0.1.19, **Computador > Falhas recentes e códigos de erro** reúne a triagem automática e a consulta manual por código. O submenu apresenta primeiro a análise dos logs. Após qualquer resultado, o técnico pode escolher outra consulta no mesmo lugar.

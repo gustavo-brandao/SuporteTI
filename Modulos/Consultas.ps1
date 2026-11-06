@@ -17,6 +17,40 @@ function Format-Section {
         else { '[INDISPONIVEL] ' + $Title + ': ' + $_.Exception.Message }
     }
 }
+
+function Get-SuporteExplicacaoAutomatica {
+    param([string]$Entrada)
+    $codigo = [uint32]0
+    $negativo = 0
+    if ($Entrada -match '^0x([0-9a-f]{1,8})$') {
+        $codigo = [Convert]::ToUInt32($Matches[1],16)
+    } elseif ($Entrada -match '^-[0-9]{1,10}$' -and [int]::TryParse($Entrada,[ref]$negativo) -and $negativo -lt 0) {
+        $codigo = [uint32]([long]$negativo + 4294967296)
+    } elseif ($Entrada -notmatch '^\d{1,10}$' -or -not [uint32]::TryParse($Entrada,[ref]$codigo)) {
+        throw 'Informe um numero decimal de 32 bits ou hexadecimal com prefixo 0x.'
+    }
+    $catalogo = $null
+    try { $catalogo = Read-SuporteCatalogoFalhas }
+    catch { '[INDISPONIVEL] Catalogo offline. A busca usa as mensagens do Windows quando disponiveis.' }
+
+    $correspondencias = @(foreach ($familia in 'Win32','HRESULT','Excecoes','Paradas') {
+        if ($familia -eq 'Win32' -and $codigo -gt 65535) { continue }
+        $descricao = Find-SuporteCodigoFalha $catalogo $familia $codigo
+        if ($descricao) { @{ Familia=$familia; Descricao=$descricao } }
+    })
+    if (-not $correspondencias.Count) {
+        '0x{0:X8}: codigo sem correspondencia no catalogo ou nas mensagens do Windows.' -f $codigo
+        return
+    }
+    if ($correspondencias.Count -gt 1) {
+        'O mesmo codigo tem mais de um significado. Confira a origem do erro.'
+    }
+    foreach ($item in $correspondencias) {
+        ''
+        Format-SuporteExplicacaoCodigo $item.Familia $codigo $item.Descricao
+    }
+}
+
 function Invoke-LocalNative {
     param([string]$Name,[string]$Arguments,[int]$Seconds=10)
     $exe=Join-Path $env:SystemRoot ('System32\'+$Name)
@@ -140,10 +174,19 @@ switch ($Id) {
         }
     }
     'falhas' {
-        Format-Section 'Diagnostico de travamentos e reinicios (24h)' { Get-SuporteDiagnosticoFalhas }
+        $codigos = New-Object 'System.Collections.Generic.List[object]'
+        Format-Section 'Diagnostico de travamentos e reinicios (24h)' {
+            Get-SuporteDiagnosticoFalhas -IncluirCodigos:($Opcoes['IncluirCodigos'] -eq $true) | ForEach-Object {
+                if ($_ -is [string]) { $_ } else { $codigos.Add($_) }
+            }
+        }
+        $codigos.ToArray()
     }
     'codigofalha' {
-        Format-Section 'Explicacao do codigo de erro' { Get-SuporteExplicacaoCodigo $Opcoes['Familia'] $Opcoes['Codigo'] }
+        Format-Section 'Explicacao do codigo de erro' {
+            if ($Opcoes['Familia']) { Get-SuporteExplicacaoCodigo $Opcoes['Familia'] $Opcoes['Codigo'] }
+            else { Get-SuporteExplicacaoAutomatica $Opcoes['Codigo'] }
+        }
     }
     'eventos' {
         foreach ($log in @('System','Application')) {

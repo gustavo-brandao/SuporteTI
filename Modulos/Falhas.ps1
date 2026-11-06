@@ -83,6 +83,11 @@ function Get-SuporteExplicacaoCodigo {
     try { $catalogo = Read-SuporteCatalogoFalhas }
     catch { '[INDISPONIVEL] Catalogo offline. O Windows ainda pode fornecer uma mensagem para esta familia.' }
     $resultado = Find-SuporteCodigoFalha $catalogo $Familia $codigo
+    Format-SuporteExplicacaoCodigo $Familia $codigo $resultado
+}
+
+function Format-SuporteExplicacaoCodigo {
+    param([string]$Familia,[uint32]$Codigo,$Resultado)
     '{0} | {1} (0x{1:X8})' -f $Familia,$codigo
     if ($resultado -and $resultado.Resumo) { $resultado.Resumo }
     else { 'Descricao em portugues indisponivel para este codigo.' }
@@ -197,6 +202,7 @@ function Get-SuporteResumoIncidente {
 }
 
 function Get-SuporteDiagnosticoFalhas {
+    param([switch]$IncluirCodigos)
     $catalogo = $null
     try { $catalogo = Read-SuporteCatalogoFalhas }
     catch {
@@ -258,6 +264,9 @@ function Get-SuporteDiagnosticoFalhas {
 
     'Ocorrencia mais recente identificada na triagem'
     $resumo.Titulo
+    if ($IncluirCodigos -and $resumo.Familia) {
+        [pscustomobject]@{ Familia = $resumo.Familia; Codigo = ('0x{0:X8}' -f $resumo.Codigo) }
+    }
     if ($resumo.Pista) { 'O que investigar: ' + $resumo.Pista }
     ''
     'Detalhes tecnicos'
@@ -286,6 +295,9 @@ function Get-SuporteDiagnosticoFalhas {
         $vistos[$chaveCodigo] = $true
         '  {0:dd/MM HH:mm:ss} | {1} | {2}' -f $registro.Hora,$registro.Evento.ProviderName,$outro.Detalhe
         '    ' + $outro.Titulo
+        if ($IncluirCodigos) {
+            [pscustomobject]@{ Familia = $outro.Familia; Codigo = ('0x{0:X8}' -f $outro.Codigo) }
+        }
         if ($outro.Pista) { '    O que investigar: ' + $outro.Pista }
         $exibidos++
         if ($exibidos -ge 6) { break }

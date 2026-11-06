@@ -89,6 +89,8 @@ function Invoke-SuporteConsulta {
     $job = $null
     $status = 'Concluido'
     $lines = @(); $queryErrors=@()
+    $incluirCodigos = $Id -eq 'falhas' -and $Opcoes['IncluirCodigos'] -eq $true
+    $codigos = @()
     try {
         $job = Start-Job -ScriptBlock {
             param($manifest, $collector, $queryId, $options)
@@ -99,7 +101,12 @@ function Invoke-SuporteConsulta {
         $completed = Wait-Job -Job $job -Timeout $TimeoutSeconds
         if ($null -eq $completed) { $status = 'Parcial: limite de tempo atingido'; Stop-Job -Job $job }
         elseif ($job.State -eq 'Failed') { $status = 'Falha' }
-        $lines = @(Receive-Job -Job $job -ErrorAction SilentlyContinue -ErrorVariable queryErrors | ForEach-Object { [string]$_ })
+        $dados = @(Receive-Job -Job $job -ErrorAction SilentlyContinue -ErrorVariable queryErrors)
+        if ($incluirCodigos) {
+            $codigos = @($dados | Where-Object { $_ -isnot [string] })
+            $dados = @($dados | Where-Object { $_ -is [string] })
+        }
+        $lines = @($dados | ForEach-Object { [string]$_ })
         if ($queryErrors) { $status='Parcial ou falha'; $lines += @($queryErrors | ForEach-Object { 'ERRO: ' + $_.ToString() }) }
         if (@($lines | Where-Object { $_ -match '(?m)^\[(INDISPONIVEL|ACESSO NEGADO)\]' }).Count -gt 0 -and $status -eq 'Concluido') { $status='Parcial: ver limitacoes' }
     } catch {
@@ -111,11 +118,13 @@ function Invoke-SuporteConsulta {
         }
     }
     if ($lines.Count -eq 0) { $lines=@('Nenhum dado foi retornado. Nao interpretar como ausencia de problemas.') }
-    [pscustomobject]@{
+    $resultado = [pscustomobject]@{
         Id=[guid]::NewGuid().ToString('N'); Consulta=$item.Nome; Computador=$env:COMPUTERNAME
         Inicio=$inicio.ToString('o'); Fim=(Get-Date).ToString('o'); Status=$status
         Texto=($lines -join [Environment]::NewLine)
     }
+    if ($incluirCodigos) { $resultado | Add-Member -NotePropertyName Codigos -NotePropertyValue $codigos }
+    $resultado
 }
 
 function Save-SuporteResultado {
@@ -299,8 +308,8 @@ function Show-SuporteResultado {
 }
 
 function Request-SuporteSalvar {
-    param($Resultado, [string]$Documentos)
-    if (([string](Read-Host 'Salvar este resultado? [S] Sim | [Enter/N] Nao')).Trim() -ine 's') { return }
+    param($Resultado, [string]$Documentos, [switch]$Confirmado)
+    if (-not $Confirmado -and ([string](Read-Host 'Salvar este resultado? [S] Sim | [Enter/N] Nao')).Trim() -ine 's') { return }
     $destino = if ($Documentos) { Join-Path $Documentos 'SuporteTI\Resultados' } else { '' }
     while ($true) {
         Write-Host ('Destino sugerido: ' + $(if ($destino) { $destino } else { 'Documentos indisponivel; escolha uma pasta.' }))
@@ -446,16 +455,15 @@ function Start-SuporteMenu {
                     if ($escolha -notin '1','2') { continue }
                     if ($escolha -eq '2') {
                         $tituloConsulta = 'Consultar um codigo de erro'
-                        $familia = Read-SuporteEscolha @('[1] Tela azul (codigo de parada)','[2] Excecao de aplicativo (NTSTATUS)','[3] Erro do sistema (Win32)','[4] HRESULT (componentes e aplicativos do Windows)') -Titulo $tituloConsulta -SemCores:$SemCores
-                        if ($familia -notin '1','2','3','4') { continue }
-                        $tipoCodigo = @('Tela azul','NTSTATUS','Win32','HRESULT')[[int]$familia-1]
-                        $tituloConsulta += ' | ' + $tipoCodigo
                         Write-SuporteTela -Titulo $tituloConsulta -SemCores:$SemCores
                         $codigo = ([string](Read-Host 'Codigo decimal ou hexadecimal com 0x (0 ou Enter volta)')).Trim()
                         if ($codigo -in '','0') { continue }
                         $consultaId = 'codigofalha'
-                        $opcoes = @{ Familia=@('Paradas','Excecoes','Win32','HRESULT')[[int]$familia-1]; Codigo=$codigo }
-                    } else { $tituloConsulta = 'Analisar os ultimos erros e travamentos (24h)' }
+                        $opcoes = @{ Codigo=$codigo }
+                    } else {
+                        $tituloConsulta = 'Analisar os ultimos erros e travamentos (24h)'
+                        $opcoes.IncluirCodigos = $true
+                    }
                 }
                 if ($item.Id -eq 'ping') {
                     Write-SuporteTela -Titulo $tituloConsulta -SemCores:$SemCores
@@ -467,7 +475,28 @@ function Start-SuporteMenu {
                 $limit = if ($item.Id -eq 'discos') { 40 } else { 25 }
                 Write-SuporteTela -Titulo $tituloConsulta -SemCores:$SemCores
                 Write-SuporteLinha ('Consultando... limite de '+$limit+' segundos; sem alteracoes corretivas.') -SemCores
-                try { $ultimo=Invoke-SuporteConsulta -Id $consultaId -Opcoes $opcoes -TimeoutSeconds $limit; Show-SuporteResultado $ultimo -SemCores:$SemCores; Request-SuporteSalvar $ultimo $documentos }
+                $codigos = @()
+                try {
+                    $ultimo = Invoke-SuporteConsulta -Id $consultaId -Opcoes $opcoes -TimeoutSeconds $limit
+                    Show-SuporteResultado $ultimo -SemCores:$SemCores
+                    if ($consultaId -eq 'falhas') { $codigos = $ultimo.Codigos }
+                    if ($codigos.Count -gt 0) {
+                        $rotulos = @{ Paradas='Tela azul'; Excecoes='NTSTATUS'; Win32='Win32'; HRESULT='HRESULT' }
+                        $atalhos = @(for ($i=0; $i -lt $codigos.Count; $i++) {
+                            '[{0}] Consultar {1} ({2})' -f ($i + 1),$codigos[$i].Codigo,$rotulos[$codigos[$i].Familia]
+                        })
+                        do {
+                            $escolha = Read-SuporteEscolha ($atalhos + '[S] Salvar este resultado') -SemCores:$SemCores
+                            if ($escolha -eq 's') { Request-SuporteSalvar $ultimo $documentos -Confirmado }
+                        } until ($escolha -eq '0' -or ($escolha -match '^[1-9]$' -and [int]$escolha -le $codigos.Count))
+                        if ($escolha -eq '0') { continue }
+                        $selecionado = $codigos[[int]$escolha - 1]
+                        Write-SuporteTela -Titulo ('Explicacao de ' + $selecionado.Codigo) -SemCores:$SemCores
+                        $ultimo = Invoke-SuporteConsulta -Id codigofalha -Opcoes @{ Familia=$selecionado.Familia; Codigo=$selecionado.Codigo } -TimeoutSeconds $limit
+                        Show-SuporteResultado $ultimo -SemCores:$SemCores
+                    }
+                    Request-SuporteSalvar $ultimo $documentos
+                }
                 catch { Write-Host ('Consulta falhou: ' + $_.Exception.Message) }
                 [void](Read-Host '0 ou Enter para voltar')
             } while ($item.Id -eq 'falhas')
