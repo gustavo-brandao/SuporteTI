@@ -3,6 +3,8 @@
 Data: 04/11/2026  
 Status: referência do planejamento aprovado. A implementação e suas limitações estão descritas em README.md.
 
+Na prévia 0.1.22, a janela elevada deixa de executar os scripts diretamente da pasta do pacote, que pode estar num pendrive ou compartilhamento gravável por contas comuns. A abertura registra uma impressão SHA256 dos módulos, da DLL e do smartctl. A janela elevada copia esses arquivos para uma pasta restrita a Administradores e SYSTEM, confere a cópia e só então executa a operação. A cópia temporária fica em `Windows\Temp` porque contas comuns não podem renomear nem substituir pastas criadas ali por outra conta; a pasta é removida ao final. Com todos os scripts assinados, a janela elevada exige AllSigned. A assinatura continua sendo a única proteção contra um pacote adulterado antes da abertura. Os binários passam a ser gerados por `Construcao\Compilar.ps1` a partir do código-fonte, e o GitHub Actions compila e executa a suíte a cada pull request.
+
 Na prévia 0.1.21, grupos, escolhas, operações e consultas usam telas com títulos próprios. A consulta manual de código separa família, digitação e resultado. O resultado fica disponível para leitura ou salvamento antes de voltar. As opções de alteração recebem rótulos, e escolhas técnicas como DISM e CHKDSK trazem explicações curtas.
 
 Na prévia 0.1.20, a triagem automática apresenta os códigos distintos encontrados nos registros consultados e suas explicações, inclusive quando a ocorrência principal não tem um código de falha identificado. A consulta por digitação continua no mesmo submenu.
@@ -40,6 +42,8 @@ Na prévia 0.1.8, a primeira prioridade foi a saúde da bateria na seção **Not
 Na versão 0.1.6, o menu ganhou destaques por cor e barra de ocupação de disco. Domínio exibe nome da máquina, ingresso e nome do domínio. A configuração manual de IPv4 inclui máscara, gateway e um ou dois DNS. GPO e Eventos exibem os comandos. Enter no prompt de salvamento equivale a Não.
 
 Atualização aprovada durante os testes (versão 0.1.2): Rede foi reduzida a configuração com `ipconfig /all` e domínio/horário; testes interativos de destino e proxy foram retirados. A seleção da ação substitui a confirmação textual, mantendo a elevação do Windows. Desempenho exibe resumo de CPU/RAM e cinco processos por memória. As seções abaixo preservam o planejamento original; README.md descreve a versão atual.
+
+Na revisão da 0.1.22, a cópia elevada preserva a marca de origem e confere o hash no destino. A elevação a partir de rede exige scripts assinados. O CI executa os testes com os binários recém-compilados.
 
 ## Objetivo e tecnologia
 

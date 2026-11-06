@@ -16,6 +16,8 @@ O script `Executar-Testes.ps1` verifica cada opcao do catalogo pelo menos duas v
 - Relatorios: salvamento repetido em arquivos diferentes e recusa de caminho relativo.
 - Exportacoes: cancelamento, destino invalido, criacao simulada dos arquivos e verificacao de hashes do manifesto.
 - Seguranca: recusa de comandos arbitrarios, uso indevido de force e selecoes de menu invalidas.
+- Janela elevada: a entrada e executada sem UAC sobre uma copia de teste do pacote, com a conta atual acrescentada a ACL somente no teste. Verifica execucao em `Windows\Temp`, argumentos e codigo de saida intactos, limpeza mesmo com arquivo de origem somente leitura, bloqueio por hash divergente, bloqueio de script com marca da Internet sob RemoteSigned e exigencia de assinatura para rede. A impressao muda ao alterar a DLL, o smartctl, o catalogo ou incluir um arquivo em Modulos. O comando elevado recusa impressao, argumentos e SIDs invalidos.
+- Compilacao: `Construcao\Compilar.ps1` gera o executavel e a DLL; o CI compila em pasta temporaria a cada pull request.
 - Rede e recursos: IPv4/DHCP com adaptadores simulados, validacao de enderecos, destino de ping, amostras HTTP simuladas e valores do monitor de CPU/RAM.
 - Armazenamento: ocupacao por volume, parametros do CHKDSK em simulacao e limpeza de cache em perfil Chrome ficticio, incluindo juncao para pasta protegida.
 - Mapa de ocupacao: arvore de teste com tamanhos conhecidos, juncao ignorada, limite de entradas e resultado parcial. A verificacao grafica cobre retangulos de cores diferentes, divisao em subpastas e navegacao.
@@ -36,4 +38,10 @@ O script `Executar-Testes.ps1` verifica cada opcao do catalogo pelo menos duas v
 
 As intervencoes de GPO, DISM, SFC, CHKDSK, spooler e cache de Update sao simuladas. A limpeza do Chrome roda em arquivos de teste. Consultas reais podem retornar parcialmente por falta de permissao ou dados. O teste verifica a resposta e o retorno ao menu.
 
-Ainda requer homologacao em laboratorio: credenciais locais/AD pelo UAC, acesso ao projeto por UNC e unidade mapeada sob outra conta, Windows 10/11, servidor de impressao, WSUS/MDM e diferentes discos/controladoras. Os scripts da aplicacao ainda nao sao assinados.
+Ainda requer homologacao em laboratorio: credenciais locais/AD pelo UAC, acesso ao projeto por UNC e unidade mapeada sob outra conta, Windows 10/11, servidor de impressao, WSUS/MDM e diferentes discos/controladoras. Os scripts da aplicacao ainda nao sao assinados. A elevacao real pelo UAC com a copia protegida, inclusive com credenciais de outra conta e com o pacote assinado em AllSigned, deve ser validada em VM.
+
+### Homologacao da janela elevada
+
+1. Em uma VM, abra o pacote local em uma sessao padrao e selecione **GPO > Politicas do computador (gpresult)**. Cancele o primeiro pedido de UAC. Repita com uma conta administrativa diferente e confira o resultado e o retorno ao menu.
+2. Abra uma copia sem assinatura em um compartilhamento de teste. Confira se a consulta administrativa e bloqueada antes do UAC.
+3. Assine outra copia com `Construcao\Assinar.ps1` e um certificado confiavel na VM. Repita a consulta por UNC. Teste tambem por unidade mapeada se ela estiver disponivel na sessao elevada. A conta administrativa precisa ter leitura no compartilhamento. Ao fechar a janela elevada, confira se sua pasta temporaria foi removida.

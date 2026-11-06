@@ -1,5 +1,13 @@
 # Resultado da verificacao
 
+## Previa 0.1.22
+
+Duas rodadas no Windows PowerShell 5.1 passaram com **198 testes e zero falhas em cada rodada**. Os cinco testes novos executaram a entrada da janela elevada sem UAC sobre uma cópia do pacote: a operação rodou a partir da cópia protegida em `Windows\Temp`, com argumentos e código de saída preservados, e a cópia foi removida. Um `Elevado.ps1` alterado depois da abertura foi bloqueado sem executar. O comando elevado de produção tem cerca de 2.500 caracteres.
+
+`Construcao\Compilar.ps1` gerou o executável e a DLL com as mesmas referências, tipos públicos e ícone dos binários anteriores. O executável compilado abriu o menu, exibiu a versão 0.1.22 em **Sobre** e encerrou com código 0.
+
+Após a revisão da cópia elevada, **201 testes passaram sem falhas** no Windows PowerShell 5.1 com o executável e a DLL recém-compilados. Os testes confirmaram a limpeza da cópia mesmo com um arquivo de origem somente leitura, o bloqueio de um script marcado como baixado da Internet e a exigência de assinatura para a cópia de rede. As duas unidades de rede visíveis na estação foram classificadas corretamente. A sessão de teste não tinha certificado de assinatura de código com chave privada disponível. O UAC com outra conta e a operação pelo compartilhamento com pacote assinado continuam pendentes de homologação em VM.
+
 ## Previa 0.1.21
 
 Duas rodadas no Windows PowerShell 5.1 passaram com **193 testes e zero falhas em cada rodada**. A verificação inclui navegação de todas as opções, sequência das telas da consulta de código, quebra de linhas em 24 colunas, rótulos sem cor e seleção de tons para fundos claro e escuro. O terminal interativo confirmou a limpeza da tela nas transições do fluxo de códigos.

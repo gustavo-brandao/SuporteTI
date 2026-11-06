@@ -1,6 +1,7 @@
 function Import-SuporteWindows {
     if (-not ('SuporteTI.LogonNativo' -as [type])) {
-        Add-Type -Path (Join-Path (Split-Path $PSScriptRoot -Parent) 'Recursos\SuporteTI.Windows.dll') -ErrorAction Stop
+        # Carregar pelos bytes evita bloquear o arquivo, permitindo remover a copia temporaria da janela elevada.
+        [void][Reflection.Assembly]::Load([IO.File]::ReadAllBytes((Join-Path (Split-Path $PSScriptRoot -Parent) 'Recursos\SuporteTI.Windows.dll')))
     }
 }
 

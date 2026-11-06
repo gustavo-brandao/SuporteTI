@@ -1,0 +1,33 @@
+name: Testes
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-powershell:
+    name: Windows PowerShell 5.1
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compilar recursos C#
+        shell: powershell
+        run: .\Construcao\Compilar.ps1 -Destino "$env:GITHUB_WORKSPACE"
+
+      - name: Executar testes
+        shell: powershell
+        run: .\Testes\Executar-Testes.ps1
+
+      - name: Guardar resultado dos testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-testes
+          path: Testes/resultado-testes.json

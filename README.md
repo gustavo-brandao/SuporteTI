@@ -20,7 +20,7 @@ Tambem e possivel iniciar em um Windows PowerShell permitido pela instituicao:
 .\Iniciar.ps1 -SemCores
 ```
 
-A distribuicao de desenvolvimento ainda nao esta assinada. O iniciador e a janela elevada usam **RemoteSigned somente no processo que abrem**, sem alterar a politica persistente do usuario ou computador. Nao usam Bypass nem desbloqueiam arquivos automaticamente. Restricoes de GPO continuam prevalecendo. Se a instituicao bloquear scripts, sera necessario homologar e assinar a distribuicao e autorizar sua execucao pelos mecanismos institucionais.
+A distribuicao de desenvolvimento ainda nao esta assinada. O iniciador e a janela elevada usam **RemoteSigned somente no processo que abrem**, sem alterar a politica persistente do usuario ou computador. Quando todos os scripts de `Modulos` tem assinatura Authenticode valida, a janela elevada passa a exigir **AllSigned**. Nao usam Bypass nem desbloqueiam arquivos automaticamente. Restricoes de GPO continuam prevalecendo. Se a instituicao bloquear scripts, sera necessario homologar e assinar a distribuicao (veja **Compilar e assinar**) e autorizar sua execucao pelos mecanismos institucionais.
 
 Se o Windows informar que um script nao esta assinado por ter vindo da internet, confira a procedencia do ZIP; nas propriedades do ZIP confiavel, use Desbloquear antes de extrair novamente. Isso remove a marcacao de origem do arquivo, nao uma restricao por GPO. Nao desbloqueie arquivos de procedencia desconhecida. Em redes que exigem AllSigned ou bloqueiam scripts, solicite a autorizacao institucional.
 
@@ -67,9 +67,11 @@ No mesmo submenu, **[2] Consultar um codigo de erro** permite escolher a familia
 - Atua somente na maquina aberta. Nao executa comandos livres ou em destinos remotos.
 - O impacto e apresentado antes das alteracoes. A configuracao e a desativacao do login automatico pedem confirmacao explicita. Quando a operacao requer elevacao, a conta deve ter direitos nessa estacao.
 - Usuario/GPO do usuario nao sao consultados sob outra conta. Operacoes administrativas usam o console atual se ele ja estiver elevado. Caso contrario, quando necessario, o Windows abre um console separado via UAC.
+- Janela elevada: ao abrir, o Suporte TI registra uma impressao SHA256 dos arquivos de `Modulos`, da DLL e do smartctl. A janela elevada copia os arquivos para uma pasta em `Windows\Temp` acessivel somente a Administradores e SYSTEM. A copia preserva a marca de origem do Windows e o hash e conferido no destino antes da execucao. Mudancas de conteudo, inclusoes ou remocoes de arquivos depois da abertura bloqueiam a operacao. A copia e removida ao terminar. A impressao protege contra alteracoes posteriores a abertura do pacote.
+- Para abrir a janela elevada a partir de uma pasta compartilhada (UNC ou unidade de rede), os scripts do pacote precisam ter assinatura Authenticode valida. Essa exigencia vale tambem na copia protegida. A conta usada no UAC deve ter acesso de leitura ao caminho original.
 - GPO pode exigir credenciais, apenas consentimento, ou impedir elevacao. A credencial usada para elevar a sessao e tratada pelo proprio Windows.
 - Nao limpa logs, nao esvazia lixeira, nao encerra programas para liberar RAM, nao altera proxy, antivirus ou permissoes.
-- Nao instala servicos, nao cria auditoria propria nem pasta em ProgramData. Comandos do Windows produzem seus logs nativos normalmente.
+- Nao instala servicos, nao cria auditoria propria nem pasta em ProgramData. A unica pasta criada fora do destino escolhido e a copia temporaria da janela elevada em `Windows\Temp`, removida ao fechar essa janela. Comandos do Windows produzem seus logs nativos normalmente.
 - Cache do Update: bloqueia se detectar manutencao ativa ou reinicializacao pendente; para BITS/wuauserv quando necessario; renomeia apenas Download; restaura os estados de execucao anteriores. O cache anterior permanece no disco, sem exclusao automatica. Nao faz reset de DataStore/catroot2, nao desinstala atualizacoes e nao inicia download automaticamente.
 - Consultas comuns: limite de 25s; discos: 40s no total, ate quatro dispositivos SMART. A consulta nativa pode fornecer resultados parciais. SFC, DISM, CHKDSK e gpupdate rodam ate o encerramento do comando nativo.
 - O uso de disco mostra total, usado, livre e percentual de ocupacao por volume local. O CHKDSK permite escolher um volume local com letra. No modo completo, o proprio Windows pode oferecer agendamento para o proximo reinicio. O tecnico reinicia manualmente se tiver aceitado o agendamento.
@@ -87,7 +89,7 @@ No mesmo submenu, **[2] Consultar um codigo de erro** permite escolher a familia
 - Dispositivos com codigo 24 ficam ocultos quando o Windows confirma que estao ausentes. Os demais dispositivos com problema aparecem no diagnostico.
 - A consulta Dominio exibe somente `Name`, `PartOfDomain` e `Domain`. O ingresso registrado e o nome do dominio podem ser verificados mesmo com o controlador indisponivel.
 
-Os arquivos portateis devem vir de fonte confiavel. A confirmacao UAC nao autentica o conteudo de um script; o projeto ainda precisa de assinatura e homologacao institucional para distribuicao em producao. O manifesto SHA256 do smartctl detecta divergencias em relacao ao pacote, mas nao e fronteira de seguranca contra quem pode alterar todo o projeto.
+Os arquivos portateis devem vir de fonte confiavel. A confirmacao UAC nao autentica o conteudo de um script. A impressao registrada na abertura protege a janela elevada contra alteracoes posteriores, mas nao contra um pacote ja adulterado antes de ser aberto; para distribuicao em producao, o projeto ainda precisa de assinatura e homologacao institucional. O manifesto SHA256 do smartctl detecta divergencias em relacao ao pacote, mas nao e fronteira de seguranca contra quem pode alterar todo o projeto.
 
 ## Resultados
 
@@ -110,8 +112,8 @@ Suporte TI.exe                Iniciador portatil com icone embutido
 Iniciar.cmd / Iniciar.ps1      Entrada do menu PowerShell
 Modulos\SuporteTI.psm1         Menu, consultas limitadas e salvamento
 Modulos\Consultas.ps1          Coletores de leitura
-Modulos\Operacoes.ps1          Acoes restritas e exportacoes
-Modulos\Elevado.ps1            Entrada UAC para acoes permitidas
+Modulos\Operacoes.ps1          Acoes restritas, exportacoes e entrada verificada da janela elevada
+Modulos\Elevado.ps1            Acoes permitidas na janela UAC, executado da copia conferida
 Modulos\Discos.ps1             SMART/NVMe e classificacao
 Modulos\Logon.ps1              Consulta e configuracao do login automatico
 Modulos\Falhas.ps1             Triagem de travamentos, reinicios e telas azuis
@@ -119,7 +121,29 @@ Modulos\CatalogoFalhas.json    Explicacoes e fontes dos codigos de falha
 Recursos\SuporteTI.Windows.dll Mapa grafico e acesso nativo ao segredo LSA
 Ferramentas\smartmontools\     smartctl 7.5, base, licenca e fonte
 Testes\Executar-Testes.ps1     Testes e cobertura por opcao
+Construcao\Compilar.ps1        Compila o executavel e a DLL a partir de Recursos\*.cs
+Construcao\Assinar.ps1         Assina scripts e binarios de uma copia de distribuicao
+.github\workflows\testes.yml   CI: compilacao e testes no Windows PowerShell 5.1
 ```
+
+## Compilar e assinar
+
+`Suporte TI.exe` e `Recursos\SuporteTI.Windows.dll` sao gerados a partir dos arquivos `.cs` de `Recursos` com o `csc.exe` do .NET Framework 4.x, presente no Windows. Nao e necessario Visual Studio:
+
+```powershell
+.\Construcao\Compilar.ps1                     # grava sobre os binarios do pacote
+.\Construcao\Compilar.ps1 -Destino C:\saida   # grava em outra pasta
+```
+
+O script recusa compilar se a versao em `Recursos\Iniciador.cs` divergir da versao de `Modulos\SuporteTI.psd1` e exibe o SHA256 dos arquivos gerados. O compilador do .NET Framework nao produz binarios byte a byte identicos entre compilacoes; a conferencia e feita recompilando a partir do codigo-fonte.
+
+Para assinar, use um certificado de assinatura de codigo confiavel nas estacoes atendidas e assine a pasta que sera compactada no ZIP, nao o clone do git, cuja conversao de fim de linha invalida as assinaturas:
+
+```powershell
+.\Construcao\Assinar.ps1 -Pacote D:\Distribuicao\SuporteTI -Impressao <thumbprint>
+```
+
+Sao assinados `Iniciar.ps1`, os scripts de `Modulos`, a DLL e o executavel. O smartctl e de terceiros e nao e assinado pelo script.
 
 ## Testes
 
@@ -129,6 +153,8 @@ Os testes simulam as intervencoes e nao reiniciam servicos nem executam reparos 
 .\Testes\Executar-Testes.ps1
 .\Testes\Executar-Testes.ps1 -IncluirConsultasReais
 ```
+
+No GitHub, cada pull request e cada envio para `main` recompilam o executavel e a DLL na pasta do pacote. A suite simulada roda em Windows PowerShell 5.1 com os binarios dessa compilacao. O `resultado-testes.json` fica anexado a execucao.
 
 O segundo comando acrescenta consultas reais somente leitura. Acesso negado e falta de dominio/hardware sao resultados possiveis; um smoke test aprovado verifica o contrato de retorno e nao significa que todos os dados estavam disponiveis. Consulte **Testes/resultado-testes.json** e **Testes/VALIDACAO.md**.
 
