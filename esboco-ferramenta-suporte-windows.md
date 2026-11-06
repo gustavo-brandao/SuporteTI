@@ -3,6 +3,8 @@
 Data: 04/11/2026  
 Status: referência do planejamento aprovado. A implementação e suas limitações estão descritas em README.md.
 
+Na prévia 0.1.22, a janela elevada deixa de executar os scripts diretamente da pasta do pacote, que pode estar num pendrive ou compartilhamento gravável por contas comuns. A abertura registra uma impressão SHA256 dos módulos, da DLL e do smartctl. A janela elevada copia esses arquivos para uma pasta restrita a Administradores e SYSTEM, confere a cópia e só então executa a operação. A cópia temporária fica em `Windows\Temp` porque contas comuns não podem renomear nem substituir pastas criadas ali por outra conta; a pasta é removida ao final. Com todos os scripts assinados, a janela elevada exige AllSigned. A assinatura continua sendo a única proteção contra um pacote adulterado antes da abertura. Os binários passam a ser gerados por `Construcao\Compilar.ps1` a partir do código-fonte, e o GitHub Actions compila e executa a suíte a cada pull request.
+
 Na prévia 0.1.21, grupos, escolhas, operações e consultas usam telas com títulos próprios. A consulta manual de código separa família, digitação e resultado. O resultado fica disponível para leitura ou salvamento antes de voltar. As opções de alteração recebem rótulos, e escolhas técnicas como DISM e CHKDSK trazem explicações curtas.
 
 Na prévia 0.1.20, a triagem automática apresenta os códigos distintos encontrados nos registros consultados e suas explicações, inclusive quando a ocorrência principal não tem um código de falha identificado. A consulta por digitação continua no mesmo submenu.

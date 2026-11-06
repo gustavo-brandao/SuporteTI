@@ -31,6 +31,84 @@ function Test-SuporteAdmin {
     ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+# Arquivos executados ou lidos pela janela elevada, alem de todos os arquivos de Modulos.
+$script:SuporteArquivosExtras = @(
+    'Recursos\SuporteTI.Windows.dll'
+    'Ferramentas\smartmontools\integridade.json'
+    'Ferramentas\smartmontools\bin\smartctl.exe'
+    'Ferramentas\smartmontools\bin\drivedb.h'
+)
+
+# Entrada da janela elevada. O texto segue na linha de comando, nao no disco do pacote:
+# copia os arquivos para uma pasta restrita a Administradores e SYSTEM, confere a impressao
+# registrada na abertura e so entao executa Elevado.ps1 a partir da copia.
+# Use somente aspas simples; cada linha termina em ; { ou } porque as linhas sao unidas por espaco.
+$script:SuporteInicioElevado = @'
+$ErrorActionPreference='Stop';
+$o=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String('__ORIGEM__'));
+$d=Join-Path $env:SystemRoot ('Temp\SuporteTI_'+[guid]::NewGuid().ToString('N'));
+$c=1;
+$s=[Security.Cryptography.SHA256]::Create();
+try{
+$a=New-Object Security.AccessControl.DirectorySecurity;
+$a.SetAccessRuleProtection($true,$false);
+foreach($i in @(__SIDS__)){$a.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule((New-Object Security.Principal.SecurityIdentifier $i),'FullControl','ContainerInherit,ObjectInherit','None','Allow')))};
+[void][IO.Directory]::CreateDirectory($d,$a);
+$r=@([IO.Directory]::GetFiles((Join-Path $o 'Modulos'))|ForEach-Object{'Modulos\'+[IO.Path]::GetFileName($_)})+@(__EXTRAS__);
+$l=@(foreach($p in $r){$f=Join-Path $o $p;if([IO.File]::Exists($f)){$b=[IO.File]::ReadAllBytes($f);$t=Join-Path $d $p;[void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($t));[IO.File]::WriteAllBytes($t,$b);$p+':'+[BitConverter]::ToString($s.ComputeHash($b)).Replace('-','')}});
+[Array]::Sort($l,[StringComparer]::Ordinal);
+if([BitConverter]::ToString($s.ComputeHash([Text.Encoding]::UTF8.GetBytes($l -join '|'))).Replace('-','') -ne '__DIGEST__'){throw 'Os arquivos do Suporte TI mudaram depois da abertura. Operacao bloqueada; feche a ferramenta e confira a procedencia do pacote.'};
+& (Join-Path $d 'Modulos\Elevado.ps1') __ARGUMENTOS__;
+$c=$LASTEXITCODE;
+}catch{Write-Host ('Falha: '+$_.Exception.Message);[void](Read-Host '0 ou Enter para voltar ao menu');}
+finally{$s.Dispose();try{if([IO.Directory]::Exists($d)){[IO.Directory]::Delete($d,$true)}}catch{Write-Host ('Aviso: a copia temporaria nao foi removida: '+$d)}};
+exit $c
+'@
+
+function Get-SuporteArquivosPacote {
+    param([Parameter(Mandatory)][string]$Raiz)
+    $relativos = @([IO.Directory]::GetFiles((Join-Path $Raiz 'Modulos')) | ForEach-Object { 'Modulos\' + [IO.Path]::GetFileName($_) }) + $script:SuporteArquivosExtras
+    $relativos | Where-Object { [IO.File]::Exists((Join-Path $Raiz $_)) }
+}
+
+function Get-SuporteDigestPacote {
+    # Mesmo calculo da entrada elevada: SHA256 de cada arquivo, linhas em ordem ordinal, SHA256 do conjunto.
+    param([Parameter(Mandatory)][string]$Raiz)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $linhas = @(foreach ($relativo in (Get-SuporteArquivosPacote $Raiz)) {
+            $relativo + ':' + [BitConverter]::ToString($sha.ComputeHash([IO.File]::ReadAllBytes((Join-Path $Raiz $relativo)))).Replace('-','')
+        })
+        [Array]::Sort($linhas,[StringComparer]::Ordinal)
+        [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($linhas -join '|'))).Replace('-','')
+    } finally { $sha.Dispose() }
+}
+
+function Get-SuportePoliticaElevacao {
+    # Pacote com todos os scripts assinados e validos: a janela elevada passa a exigir AllSigned.
+    param([Parameter(Mandatory)][string]$Raiz)
+    $scripts = @(Get-SuporteArquivosPacote $Raiz | Where-Object { $_ -match '\.(ps1|psm1|psd1)$' })
+    $semAssinatura = @($scripts | Where-Object { (Get-AuthenticodeSignature -LiteralPath (Join-Path $Raiz $_)).Status -ne 'Valid' })
+    if ($scripts.Count -gt 0 -and $semAssinatura.Count -eq 0) { 'AllSigned' } else { 'RemoteSigned' }
+}
+
+function Get-SuporteComandoElevado {
+    # SidsExtras existe apenas para os testes executarem a entrada sem elevacao.
+    param([Parameter(Mandatory)][string]$Raiz,[Parameter(Mandatory)][string]$Digest,
+        [Parameter(Mandatory)][string]$Argumentos,[string[]]$SidsExtras=@())
+    if ($Digest -notmatch '^[0-9A-F]{64}$') { throw 'Impressao do pacote invalida.' }
+    if ($Argumentos -notmatch '^[A-Za-z0-9 +/=-]+$') { throw 'Argumentos de elevacao invalidos.' }
+    $sids = @(@('S-1-5-32-544','S-1-5-18') + $SidsExtras | ForEach-Object {
+        if ($_ -notmatch '^S-1-[0-9-]+$') { throw 'SID invalido.' }
+        "'" + $_ + "'"
+    }) -join ','
+    $extras = @($script:SuporteArquivosExtras | ForEach-Object { "'" + $_ + "'" }) -join ','
+    $origem = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes([IO.Path]::GetFullPath($Raiz)))
+    $texto = $script:SuporteInicioElevado.Replace('__ORIGEM__',$origem).Replace('__SIDS__',$sids).
+        Replace('__EXTRAS__',$extras).Replace('__DIGEST__',$Digest).Replace('__ARGUMENTOS__',$Argumentos)
+    (($texto -split '\r?\n') | ForEach-Object { $_.Trim() } | Where-Object { $_ }) -join ' '
+}
+
 function Get-SuporteArgumentosGpupdate {
     param([ValidateSet('user','computer')][string]$Escopo,[switch]$Forcar)
     "/target:$Escopo"
@@ -156,12 +234,17 @@ function Request-SuporteOperacao {
     if ($Forcar) { Write-SuporteLinha 'FORCE: reaplica todas as configuracoes do escopo selecionado.' -Cor Yellow -SemCores:$SemCores }
     Write-Host ''
     if ($info.Admin -and -not (Test-SuporteAdmin)) {
-        $worker=Join-Path $PSScriptRoot 'Elevado.ps1'
-        if ($worker.Contains('"')) { throw 'Caminho do projeto invalido.' }
+        if (-not $script:SuporteDigestPacote) {
+            Write-Host 'Os arquivos do Suporte TI nao foram registrados na abertura. Feche e abra a ferramenta novamente.'
+            return
+        }
+        $raiz=Split-Path $PSScriptRoot -Parent
         $doc64=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Documentos))
-        $arguments='-NoLogo -NoProfile -ExecutionPolicy RemoteSigned -File "'+$worker+'" -Acao '+$Acao+' -Documentos64 '+$doc64
-        if ($Forcar) { $arguments+=' -Forcar' }
-        if ($SemCores) { $arguments+=' -SemCores' }
+        $parametros='-Acao '+$Acao+' -Documentos64 '+$doc64
+        if ($Forcar) { $parametros+=' -Forcar' }
+        if ($SemCores) { $parametros+=' -SemCores' }
+        $comando=Get-SuporteComandoElevado -Raiz $raiz -Digest $script:SuporteDigestPacote -Argumentos $parametros
+        $arguments='-NoLogo -NoProfile -ExecutionPolicy '+(Get-SuportePoliticaElevacao $raiz)+' -Command '+$comando
         Write-Host 'O Windows solicitara elevacao. Use uma conta com direitos nesta estacao.'
         Write-Host 'A operacao selecionada sera executada na janela elevada se voce autorizar no Windows.'
         try {

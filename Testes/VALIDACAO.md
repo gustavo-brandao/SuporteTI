@@ -16,6 +16,8 @@ O script `Executar-Testes.ps1` verifica cada opcao do catalogo pelo menos duas v
 - Relatorios: salvamento repetido em arquivos diferentes e recusa de caminho relativo.
 - Exportacoes: cancelamento, destino invalido, criacao simulada dos arquivos e verificacao de hashes do manifesto.
 - Seguranca: recusa de comandos arbitrarios, uso indevido de force e selecoes de menu invalidas.
+- Janela elevada: a entrada e executada sem UAC sobre uma copia de teste do pacote, com a conta atual acrescentada a ACL somente no teste. Verifica que Elevado.ps1 roda da copia em `Windows\Temp`, que os argumentos e o codigo de saida chegam intactos e que a copia e removida. Um Elevado.ps1 alterado depois da impressao e bloqueado sem executar. A impressao muda ao alterar a DLL, o smartctl, o catalogo ou incluir um arquivo em Modulos. O comando elevado nao tem aspas duplas nem quebras de linha, recusa impressao, argumentos e SIDs invalidos, e a politica AllSigned so e escolhida com todos os scripts assinados.
+- Compilacao: `Construcao\Compilar.ps1` gera o executavel e a DLL; o CI compila em pasta temporaria a cada pull request.
 - Rede e recursos: IPv4/DHCP com adaptadores simulados, validacao de enderecos, destino de ping, amostras HTTP simuladas e valores do monitor de CPU/RAM.
 - Armazenamento: ocupacao por volume, parametros do CHKDSK em simulacao e limpeza de cache em perfil Chrome ficticio, incluindo juncao para pasta protegida.
 - Mapa de ocupacao: arvore de teste com tamanhos conhecidos, juncao ignorada, limite de entradas e resultado parcial. A verificacao grafica cobre retangulos de cores diferentes, divisao em subpastas e navegacao.
@@ -36,4 +38,4 @@ O script `Executar-Testes.ps1` verifica cada opcao do catalogo pelo menos duas v
 
 As intervencoes de GPO, DISM, SFC, CHKDSK, spooler e cache de Update sao simuladas. A limpeza do Chrome roda em arquivos de teste. Consultas reais podem retornar parcialmente por falta de permissao ou dados. O teste verifica a resposta e o retorno ao menu.
 
-Ainda requer homologacao em laboratorio: credenciais locais/AD pelo UAC, acesso ao projeto por UNC e unidade mapeada sob outra conta, Windows 10/11, servidor de impressao, WSUS/MDM e diferentes discos/controladoras. Os scripts da aplicacao ainda nao sao assinados.
+Ainda requer homologacao em laboratorio: credenciais locais/AD pelo UAC, acesso ao projeto por UNC e unidade mapeada sob outra conta, Windows 10/11, servidor de impressao, WSUS/MDM e diferentes discos/controladoras. Os scripts da aplicacao ainda nao sao assinados. A elevacao real pelo UAC com a copia protegida, inclusive com credenciais de outra conta e com o pacote assinado em AllSigned, deve ser validada em VM.

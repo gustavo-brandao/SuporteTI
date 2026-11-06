@@ -1,5 +1,5 @@
 ﻿{
-    "Data":  "2026-11-05T17:09:46.3123033-04:00",
+    "Data":  "2026-11-06T08:13:11.9573132-04:00",
     "PowerShell":  "5.1.26100.9818",
     "Tipo":  "Simulacoes controladas; consultas reais apenas com switch",
     "Testes":  [
@@ -816,6 +816,36 @@
                    {
                        "Opcao":  "iniciador",
                        "Teste":  "sem mudanca persistente ou desbloqueio automatico",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "janela elevada executa somente a copia conferida e remove a copia",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "pacote alterado depois da abertura bloqueia a janela elevada",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "impressao do pacote cobre modulos, DLL e smartctl",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "comando elevado usa aspas simples, tamanho limitado e entradas validadas",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  "Tamanho do comando: 2507"
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "AllSigned somente quando todos os scripts tem assinatura valida",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
                    },

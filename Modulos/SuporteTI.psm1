@@ -7,6 +7,10 @@ Set-StrictMode -Version 2.0
 . (Join-Path $PSScriptRoot 'Perfis.ps1')
 . (Join-Path $PSScriptRoot 'Logon.ps1')
 
+# Impressao dos arquivos na abertura. A janela elevada recusa executar se o pacote mudar depois disso.
+$script:SuporteDigestPacote = $null
+try { $script:SuporteDigestPacote = Get-SuporteDigestPacote (Split-Path $PSScriptRoot -Parent) } catch {}
+
 function Get-SuporteCatalogo {
     $catalogo = @(
         @{ Id='sistema'; Grupo='Computador'; Nome='Informacoes do computador' }

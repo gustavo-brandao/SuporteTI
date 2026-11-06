@@ -395,7 +395,7 @@ Test-Case diskhealth 'encaminha SemCores para a janela elevada' {
         Request-SuporteOperacao diskhealth 'C:\Documentos' -SemCores
         $script:ArgumentosDiscoTeste
     }
-    Assert-True ($argumentos -match '-Acao diskhealth .* -SemCores$') 'A preferencia de cores nao chegou a janela elevada.'
+    Assert-True ($argumentos -match '-Acao diskhealth -Documentos64 \S+ -SemCores;') 'A preferencia de cores nao chegou a janela elevada.'
 }
 Test-Case bateria 'barra usa capacidade relativa com decimal local e omite dado ausente' {
     $linhas = & $module {
@@ -746,6 +746,97 @@ Test-Case iniciador 'sem mudanca persistente ou desbloqueio automatico' {
         Assert-True ($code -notmatch 'Set-ExecutionPolicy|Unblock-File|-ExecutionPolicy\s+Bypass') ('Alteracao indevida em '+$file)
     }
 }
+
+# Pacote de teste para a entrada elevada: copia real dos arquivos com Elevado.ps1 substituido.
+function New-FixturePacoteElevado {
+    param([string]$Nome)
+    $pacote = Join-Path $testRoot $Nome
+    foreach ($pasta in @('Modulos','Recursos','Ferramentas\smartmontools\bin')) { [void][IO.Directory]::CreateDirectory((Join-Path $pacote $pasta)) }
+    foreach ($arquivo in [IO.Directory]::GetFiles((Join-Path $root 'Modulos'))) { [IO.File]::Copy($arquivo,(Join-Path $pacote ('Modulos\'+[IO.Path]::GetFileName($arquivo)))) }
+    foreach ($relativo in @('Recursos\SuporteTI.Windows.dll','Ferramentas\smartmontools\integridade.json','Ferramentas\smartmontools\bin\smartctl.exe','Ferramentas\smartmontools\bin\drivedb.h')) {
+        [IO.File]::Copy((Join-Path $root $relativo),(Join-Path $pacote $relativo))
+    }
+    $marca = Join-Path $testRoot ($Nome+'-marca.txt')
+    $stub = "param([string]`$Acao,[string]`$Documentos64,[switch]`$Forcar,[switch]`$SemCores)`r`n" +
+        "[IO.File]::WriteAllText('$marca',(`$PSScriptRoot+'|'+`$Acao+'|'+[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String(`$Documentos64))+'|'+`$SemCores))`r`nexit 7`r`n"
+    [IO.File]::WriteAllText((Join-Path $pacote 'Modulos\Elevado.ps1'),$stub,[Text.Encoding]::ASCII)
+    [pscustomobject]@{Pacote=$pacote;Marca=$marca}
+}
+function Invoke-FixtureEntradaElevada {
+    # Executa a entrada elevada sem UAC. O SID atual entra na ACL somente neste teste.
+    param([string]$Pacote,[string]$Digest)
+    $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $documentos = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes('C:\Pasta com espaco'))
+    $comando = & $module { param($p,$d,$a,$s) Get-SuporteComandoElevado -Raiz $p -Digest $d -Argumentos $a -SidsExtras $s } $Pacote $Digest ('-Acao spooler -Documentos64 '+$documentos+' -SemCores') $sid
+    $entrada = Join-Path $testRoot ([guid]::NewGuid().ToString('N')+'-entrada.txt'); [IO.File]::WriteAllText($entrada,'')
+    $saida = Join-Path $testRoot ([guid]::NewGuid().ToString('N')+'-saida.txt')
+    $processo = Start-Process (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -ArgumentList ('-NoLogo -NoProfile -ExecutionPolicy RemoteSigned -Command '+$comando) -RedirectStandardInput $entrada -RedirectStandardOutput $saida -PassThru -WindowStyle Hidden
+    $null = $processo.Handle # Sem guardar o handle, o PowerShell 5.1 perde o ExitCode.
+    if (-not $processo.WaitForExit(60000)) { $processo.Kill(); throw 'Entrada elevada excedeu 60 segundos.' }
+    [pscustomobject]@{Codigo=$processo.ExitCode;Saida=[IO.File]::ReadAllText($saida)}
+}
+Test-Case seguranca 'janela elevada executa somente a copia conferida e remove a copia' {
+    $fixture = New-FixturePacoteElevado 'pacote-elevado-ok'
+    $digest = & $module { param($p) Get-SuporteDigestPacote $p } $fixture.Pacote
+    $resultado = Invoke-FixtureEntradaElevada $fixture.Pacote $digest
+    Assert-True ($resultado.Codigo -eq 7) ('Codigo de saida nao propagado: '+$resultado.Codigo+' '+$resultado.Saida)
+    $campos = [IO.File]::ReadAllText($fixture.Marca).Split('|')
+    $copia = Split-Path $campos[0] -Parent
+    Assert-True ($copia.StartsWith((Join-Path $env:SystemRoot 'Temp\SuporteTI_'),[StringComparison]::OrdinalIgnoreCase)) ('Elevado.ps1 nao rodou da copia protegida: '+$campos[0])
+    Assert-True ($campos[1] -eq 'spooler' -and $campos[2] -eq 'C:\Pasta com espaco' -and $campos[3] -eq 'True') 'Argumentos nao chegaram intactos.'
+    Assert-True (-not [IO.Directory]::Exists($copia)) ('Copia temporaria permaneceu: '+$copia)
+}
+Test-Case seguranca 'pacote alterado depois da abertura bloqueia a janela elevada' {
+    $fixture = New-FixturePacoteElevado 'pacote-elevado-alterado'
+    $digest = & $module { param($p) Get-SuporteDigestPacote $p } $fixture.Pacote
+    [IO.File]::AppendAllText((Join-Path $fixture.Pacote 'Modulos\Elevado.ps1'),"# alteracao posterior`r`n")
+    $resultado = Invoke-FixtureEntradaElevada $fixture.Pacote $digest
+    Assert-True ($resultado.Codigo -eq 1) ('Pacote alterado nao terminou com codigo 1: '+$resultado.Codigo)
+    Assert-True (-not [IO.File]::Exists($fixture.Marca)) 'Elevado.ps1 alterado chegou a rodar.'
+    Assert-True ($resultado.Saida -match 'mudaram depois da abertura') 'Motivo do bloqueio nao foi exibido.'
+}
+Test-Case seguranca 'impressao do pacote cobre modulos, DLL e smartctl' {
+    $fixture = New-FixturePacoteElevado 'pacote-impressao'
+    $inicial = & $module { param($p) Get-SuporteDigestPacote $p } $fixture.Pacote
+    Assert-True ($inicial -match '^[0-9A-F]{64}$') 'Impressao em formato inesperado.'
+    foreach ($relativo in @('Recursos\SuporteTI.Windows.dll','Ferramentas\smartmontools\bin\smartctl.exe','Modulos\CatalogoFalhas.json')) {
+        $caminho = Join-Path $fixture.Pacote $relativo
+        $original = [IO.File]::ReadAllBytes($caminho)
+        [IO.File]::WriteAllBytes($caminho,$original + [byte]0)
+        $alterada = & $module { param($p) Get-SuporteDigestPacote $p } $fixture.Pacote
+        [IO.File]::WriteAllBytes($caminho,$original)
+        Assert-True ($alterada -ne $inicial) ('Alteracao nao detectada em '+$relativo)
+    }
+    [IO.File]::WriteAllText((Join-Path $fixture.Pacote 'Modulos\Extra.ps1'),'# novo')
+    Assert-True ((& $module { param($p) Get-SuporteDigestPacote $p } $fixture.Pacote) -ne $inicial) 'Arquivo novo em Modulos nao foi detectado.'
+}
+Test-Case seguranca 'comando elevado usa aspas simples, tamanho limitado e entradas validadas' {
+    $check = & $module {
+        $documentos = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes('C:\Users\Teste\Documents'))
+        $comando = Get-SuporteComandoElevado -Raiz (Split-Path $PSScriptRoot -Parent) -Digest $script:SuporteDigestPacote -Argumentos ('-Acao dismrestore -Documentos64 '+$documentos+' -Forcar -SemCores')
+        $recusas = 0
+        try { Get-SuporteComandoElevado -Raiz 'C:\' -Digest 'abc' -Argumentos '-Acao spooler' | Out-Null } catch { $recusas++ }
+        try { Get-SuporteComandoElevado -Raiz 'C:\' -Digest ('A'*64) -Argumentos '-Acao spooler; Remove-Item C:\' | Out-Null } catch { $recusas++ }
+        try { Get-SuporteComandoElevado -Raiz 'C:\' -Digest ('A'*64) -Argumentos '-Acao spooler' -SidsExtras 'Everyone' | Out-Null } catch { $recusas++ }
+        [pscustomobject]@{Comando=$comando;Recusas=$recusas;Digest=$script:SuporteDigestPacote}
+    }
+    Assert-True ($check.Digest -match '^[0-9A-F]{64}$') 'Impressao do pacote nao registrada na abertura.'
+    Assert-True (-not $check.Comando.Contains('"') -and $check.Comando -notmatch '[\r\n]') 'Comando elevado contem aspas duplas ou quebras de linha.'
+    Assert-True ($check.Comando.Length -lt 6000) ('Comando elevado longo demais: '+$check.Comando.Length)
+    Assert-True ($check.Comando -match "'S-1-5-32-544','S-1-5-18'\)" -and $check.Comando -match '-Acao dismrestore -Documentos64 \S+ -Forcar -SemCores;') 'ACL ou argumentos do comando elevado incorretos.'
+    Assert-True ($check.Recusas -eq 3) 'Entradas invalidas foram aceitas no comando elevado.'
+    $script:TestDetail = 'Tamanho do comando: '+$check.Comando.Length
+}
+Test-Case seguranca 'AllSigned somente quando todos os scripts tem assinatura valida' {
+    $politicas = & $module {
+        $raiz = Split-Path $PSScriptRoot -Parent
+        function Get-AuthenticodeSignature { param($LiteralPath) [pscustomobject]@{Status='Valid'} }
+        Get-SuportePoliticaElevacao $raiz
+        function Get-AuthenticodeSignature { param($LiteralPath) [pscustomobject]@{Status=$(if($LiteralPath -like '*Elevado.ps1'){'NotSigned'}else{'Valid'})} }
+        Get-SuportePoliticaElevacao $raiz
+    }
+    Assert-True (($politicas -join ',') -eq 'AllSigned,RemoteSigned') ('Politica incorreta: '+($politicas -join ','))
+}
 Test-Case diskhealth 'integridade divergente bloqueia smartctl' {
     $blocked=& $module {
         function Get-FileHash { [pscustomobject]@{Hash='HASH_DIVERGENTE'} }
@@ -895,7 +986,7 @@ Test-Case bateria 'desktop com nobreak USB exibe a opcao e informa que nao se ap
 }
 
 Test-Case mapaocupacao 'varredura agrega tamanhos e para de forma segura ao atingir limite' {
-    Add-Type -Path (Join-Path $root 'Recursos\SuporteTI.Windows.dll')
+    & $module { Import-SuporteWindows }
     $pasta = Join-Path $testRoot 'mapa'
     $dados = Join-Path $pasta 'Dados'
     [void][IO.Directory]::CreateDirectory($dados)
