@@ -43,6 +43,8 @@ Na versão 0.1.6, o menu ganhou destaques por cor e barra de ocupação de disco
 
 Atualização aprovada durante os testes (versão 0.1.2): Rede foi reduzida a configuração com `ipconfig /all` e domínio/horário; testes interativos de destino e proxy foram retirados. A seleção da ação substitui a confirmação textual, mantendo a elevação do Windows. Desempenho exibe resumo de CPU/RAM e cinco processos por memória. As seções abaixo preservam o planejamento original; README.md descreve a versão atual.
 
+Na revisão da 0.1.22, a cópia elevada preserva a marca de origem e confere o hash no destino. A elevação a partir de rede exige scripts assinados. O CI executa os testes com os binários recém-compilados.
+
 ## Objetivo e tecnologia
 
 Facilitar o atendimento técnico com diagnósticos e intervenções selecionadas, sem exigir que o técnico memorize comandos.

@@ -42,6 +42,7 @@ $script:SuporteArquivosExtras = @(
 # Entrada da janela elevada. O texto segue na linha de comando, nao no disco do pacote:
 # copia os arquivos para uma pasta restrita a Administradores e SYSTEM, confere a impressao
 # registrada na abertura e so entao executa Elevado.ps1 a partir da copia.
+# File.Copy preserva a marca de origem do Windows quando presente.
 # Use somente aspas simples; cada linha termina em ; { ou } porque as linhas sao unidas por espaco.
 $script:SuporteInicioElevado = @'
 $ErrorActionPreference='Stop';
@@ -55,9 +56,24 @@ $a.SetAccessRuleProtection($true,$false);
 foreach($i in @(__SIDS__)){$a.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule((New-Object Security.Principal.SecurityIdentifier $i),'FullControl','ContainerInherit,ObjectInherit','None','Allow')))};
 [void][IO.Directory]::CreateDirectory($d,$a);
 $r=@([IO.Directory]::GetFiles((Join-Path $o 'Modulos'))|ForEach-Object{'Modulos\'+[IO.Path]::GetFileName($_)})+@(__EXTRAS__);
-$l=@(foreach($p in $r){$f=Join-Path $o $p;if([IO.File]::Exists($f)){$b=[IO.File]::ReadAllBytes($f);$t=Join-Path $d $p;[void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($t));[IO.File]::WriteAllBytes($t,$b);$p+':'+[BitConverter]::ToString($s.ComputeHash($b)).Replace('-','')}});
+$l=@(foreach($p in $r){
+$f=Join-Path $o $p;
+if([IO.File]::Exists($f)){
+$t=Join-Path $d $p;
+[void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($t));
+[IO.File]::Copy($f,$t);
+$atributos=[IO.File]::GetAttributes($t);
+if($atributos -band [IO.FileAttributes]::ReadOnly){[IO.File]::SetAttributes($t,($atributos -band (-bnot [IO.FileAttributes]::ReadOnly)))};
+$p+':'+[BitConverter]::ToString($s.ComputeHash([IO.File]::ReadAllBytes($t))).Replace('-','');
+}
+});
 [Array]::Sort($l,[StringComparer]::Ordinal);
 if([BitConverter]::ToString($s.ComputeHash([Text.Encoding]::UTF8.GetBytes($l -join '|'))).Replace('-','') -ne '__DIGEST__'){throw 'Os arquivos do Suporte TI mudaram depois da abertura. Operacao bloqueada; feche a ferramenta e confira a procedencia do pacote.'};
+if(__EXIGIR_ASSINATURA__){
+foreach($f in [IO.Directory]::GetFiles((Join-Path $d 'Modulos'))){
+if([IO.Path]::GetExtension($f) -in '.ps1','.psm1','.psd1' -and (Get-AuthenticodeSignature -LiteralPath $f).Status -ne 'Valid'){throw 'A elevacao a partir de rede exige assinatura valida nos scripts do pacote.'};
+}
+};
 & (Join-Path $d 'Modulos\Elevado.ps1') __ARGUMENTOS__;
 $c=$LASTEXITCODE;
 }catch{Write-Host ('Falha: '+$_.Exception.Message);[void](Read-Host '0 ou Enter para voltar ao menu');}
@@ -92,10 +108,17 @@ function Get-SuportePoliticaElevacao {
     if ($scripts.Count -gt 0 -and $semAssinatura.Count -eq 0) { 'AllSigned' } else { 'RemoteSigned' }
 }
 
+function Test-SuporteOrigemRede {
+    param([Parameter(Mandatory)][string]$Raiz)
+    $caminho = [IO.Path]::GetFullPath($Raiz)
+    if ($caminho.StartsWith('\\')) { return $true }
+    [IO.DriveInfo]::new([IO.Path]::GetPathRoot($caminho)).DriveType -eq [IO.DriveType]::Network
+}
+
 function Get-SuporteComandoElevado {
     # SidsExtras existe apenas para os testes executarem a entrada sem elevacao.
     param([Parameter(Mandatory)][string]$Raiz,[Parameter(Mandatory)][string]$Digest,
-        [Parameter(Mandatory)][string]$Argumentos,[string[]]$SidsExtras=@())
+        [Parameter(Mandatory)][string]$Argumentos,[switch]$ExigirAssinatura,[string[]]$SidsExtras=@())
     if ($Digest -notmatch '^[0-9A-F]{64}$') { throw 'Impressao do pacote invalida.' }
     if ($Argumentos -notmatch '^[A-Za-z0-9 +/=-]+$') { throw 'Argumentos de elevacao invalidos.' }
     $sids = @(@('S-1-5-32-544','S-1-5-18') + $SidsExtras | ForEach-Object {
@@ -104,8 +127,10 @@ function Get-SuporteComandoElevado {
     }) -join ','
     $extras = @($script:SuporteArquivosExtras | ForEach-Object { "'" + $_ + "'" }) -join ','
     $origem = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes([IO.Path]::GetFullPath($Raiz)))
+    $exigirAssinaturaNoComando = if ($ExigirAssinatura) { '$true' } else { '$false' }
     $texto = $script:SuporteInicioElevado.Replace('__ORIGEM__',$origem).Replace('__SIDS__',$sids).
-        Replace('__EXTRAS__',$extras).Replace('__DIGEST__',$Digest).Replace('__ARGUMENTOS__',$Argumentos)
+        Replace('__EXTRAS__',$extras).Replace('__DIGEST__',$Digest).
+        Replace('__EXIGIR_ASSINATURA__',$exigirAssinaturaNoComando).Replace('__ARGUMENTOS__',$Argumentos)
     (($texto -split '\r?\n') | ForEach-Object { $_.Trim() } | Where-Object { $_ }) -join ' '
 }
 
@@ -243,11 +268,17 @@ function Request-SuporteOperacao {
         $parametros='-Acao '+$Acao+' -Documentos64 '+$doc64
         if ($Forcar) { $parametros+=' -Forcar' }
         if ($SemCores) { $parametros+=' -SemCores' }
-        $comando=Get-SuporteComandoElevado -Raiz $raiz -Digest $script:SuporteDigestPacote -Argumentos $parametros
-        $arguments='-NoLogo -NoProfile -ExecutionPolicy '+(Get-SuportePoliticaElevacao $raiz)+' -Command '+$comando
-        Write-Host 'O Windows solicitara elevacao. Use uma conta com direitos nesta estacao.'
-        Write-Host 'A operacao selecionada sera executada na janela elevada se voce autorizar no Windows.'
         try {
+            $origemRede = Test-SuporteOrigemRede $raiz
+            $politica = Get-SuportePoliticaElevacao $raiz
+            if ($origemRede -and $politica -ne 'AllSigned') {
+                Write-Host 'A elevacao a partir de rede exige assinatura valida nos scripts do pacote.'
+                return
+            }
+            $comando = Get-SuporteComandoElevado -Raiz $raiz -Digest $script:SuporteDigestPacote -Argumentos $parametros -ExigirAssinatura:$origemRede
+            $arguments = '-NoLogo -NoProfile -ExecutionPolicy ' + $politica + ' -Command ' + $comando
+            Write-Host 'O Windows solicitara elevacao. Use uma conta com direitos nesta estacao.'
+            Write-Host 'A operacao selecionada sera executada na janela elevada se voce autorizar no Windows.'
             $p=Start-Process -FilePath (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -ArgumentList $arguments -Verb RunAs -PassThru -Wait -ErrorAction Stop
             if ($p.ExitCode -ne 0) { Write-Host 'Operacao cancelada, bloqueada ou falhou. Confira a janela elevada.' }
             else { Write-Host 'Janela elevada encerrada. O resultado detalhado foi apresentado nela.' }

@@ -764,10 +764,13 @@ function New-FixturePacoteElevado {
 }
 function Invoke-FixtureEntradaElevada {
     # Executa a entrada elevada sem UAC. O SID atual entra na ACL somente neste teste.
-    param([string]$Pacote,[string]$Digest)
+    param([string]$Pacote,[string]$Digest,[switch]$ExigirAssinatura)
     $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
     $documentos = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes('C:\Pasta com espaco'))
-    $comando = & $module { param($p,$d,$a,$s) Get-SuporteComandoElevado -Raiz $p -Digest $d -Argumentos $a -SidsExtras $s } $Pacote $Digest ('-Acao spooler -Documentos64 '+$documentos+' -SemCores') $sid
+    $comando = & $module {
+        param($p,$d,$a,$s,$assinatura)
+        Get-SuporteComandoElevado -Raiz $p -Digest $d -Argumentos $a -SidsExtras $s -ExigirAssinatura:$assinatura
+    } $Pacote $Digest ('-Acao spooler -Documentos64 '+$documentos+' -SemCores') $sid ([bool]$ExigirAssinatura)
     $entrada = Join-Path $testRoot ([guid]::NewGuid().ToString('N')+'-entrada.txt'); [IO.File]::WriteAllText($entrada,'')
     $saida = Join-Path $testRoot ([guid]::NewGuid().ToString('N')+'-saida.txt')
     $processo = Start-Process (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -ArgumentList ('-NoLogo -NoProfile -ExecutionPolicy RemoteSigned -Command '+$comando) -RedirectStandardInput $entrada -RedirectStandardOutput $saida -PassThru -WindowStyle Hidden
@@ -777,6 +780,7 @@ function Invoke-FixtureEntradaElevada {
 }
 Test-Case seguranca 'janela elevada executa somente a copia conferida e remove a copia' {
     $fixture = New-FixturePacoteElevado 'pacote-elevado-ok'
+    [IO.File]::SetAttributes((Join-Path $fixture.Pacote 'Modulos\Elevado.ps1'),[IO.FileAttributes]::ReadOnly)
     $digest = & $module { param($p) Get-SuporteDigestPacote $p } $fixture.Pacote
     $resultado = Invoke-FixtureEntradaElevada $fixture.Pacote $digest
     Assert-True ($resultado.Codigo -eq 7) ('Codigo de saida nao propagado: '+$resultado.Codigo+' '+$resultado.Saida)
@@ -785,6 +789,27 @@ Test-Case seguranca 'janela elevada executa somente a copia conferida e remove a
     Assert-True ($copia.StartsWith((Join-Path $env:SystemRoot 'Temp\SuporteTI_'),[StringComparison]::OrdinalIgnoreCase)) ('Elevado.ps1 nao rodou da copia protegida: '+$campos[0])
     Assert-True ($campos[1] -eq 'spooler' -and $campos[2] -eq 'C:\Pasta com espaco' -and $campos[3] -eq 'True') 'Argumentos nao chegaram intactos.'
     Assert-True (-not [IO.Directory]::Exists($copia)) ('Copia temporaria permaneceu: '+$copia)
+}
+Test-Case seguranca 'RemoteSigned bloqueia na copia um script sem assinatura com marca da Internet' {
+    $fixture = New-FixturePacoteElevado 'pacote-elevado-internet'
+    $worker = Join-Path $fixture.Pacote 'Modulos\Elevado.ps1'
+    Set-Content -LiteralPath $worker -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3"
+    $digest = & $module { param($p) Get-SuporteDigestPacote $p } $fixture.Pacote
+    $resultado = Invoke-FixtureEntradaElevada $fixture.Pacote $digest
+    Assert-True ($resultado.Codigo -eq 1 -and -not [IO.File]::Exists($fixture.Marca)) 'A copia executou um script que RemoteSigned deveria bloquear.'
+    Assert-True ($resultado.Saida -match 'Falha:') 'O bloqueio nao foi informado.'
+}
+Test-Case seguranca 'origem em rede e reconhecida antes de copiar o pacote' {
+    $rede = & $module { Test-SuporteOrigemRede '\\servidor.invalid\compartilhamento\Suporte TI' }
+    $local = & $module { param($p) Test-SuporteOrigemRede $p } $testRoot
+    Assert-True ($rede -and -not $local) 'A classificacao de caminho UNC ou local esta incorreta.'
+}
+Test-Case seguranca 'origem em rede recusa script sem assinatura mesmo sob RemoteSigned' {
+    $fixture = New-FixturePacoteElevado 'pacote-elevado-rede'
+    $digest = & $module { param($p) Get-SuporteDigestPacote $p } $fixture.Pacote
+    $resultado = Invoke-FixtureEntradaElevada $fixture.Pacote $digest -ExigirAssinatura
+    Assert-True ($resultado.Codigo -eq 1 -and -not [IO.File]::Exists($fixture.Marca)) 'Um pacote sem assinatura passou pela verificacao de rede.'
+    Assert-True ($resultado.Saida -match 'rede exige assinatura valida') 'A exigencia de assinatura nao foi informada.'
 }
 Test-Case seguranca 'pacote alterado depois da abertura bloqueia a janela elevada' {
     $fixture = New-FixturePacoteElevado 'pacote-elevado-alterado'

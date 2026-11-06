@@ -1,5 +1,5 @@
 ﻿{
-    "Data":  "2026-11-06T08:13:11.9573132-04:00",
+    "Data":  "2026-11-06T09:24:09.7699583-04:00",
     "PowerShell":  "5.1.26100.9818",
     "Tipo":  "Simulacoes controladas; consultas reais apenas com switch",
     "Testes":  [
@@ -827,6 +827,24 @@
                    },
                    {
                        "Opcao":  "seguranca",
+                       "Teste":  "RemoteSigned bloqueia na copia um script sem assinatura com marca da Internet",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "origem em rede e reconhecida antes de copiar o pacote",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
+                       "Teste":  "origem em rede recusa script sem assinatura mesmo sob RemoteSigned",
+                       "Resultado":  "PASSOU",
+                       "Detalhe":  ""
+                   },
+                   {
+                       "Opcao":  "seguranca",
                        "Teste":  "pacote alterado depois da abertura bloqueia a janela elevada",
                        "Resultado":  "PASSOU",
                        "Detalhe":  ""
@@ -841,7 +859,7 @@
                        "Opcao":  "seguranca",
                        "Teste":  "comando elevado usa aspas simples, tamanho limitado e entradas validadas",
                        "Resultado":  "PASSOU",
-                       "Detalhe":  "Tamanho do comando: 2507"
+                       "Detalhe":  "Tamanho do comando: 2705"
                    },
                    {
                        "Opcao":  "seguranca",

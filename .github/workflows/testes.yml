@@ -19,7 +19,7 @@ jobs:
 
       - name: Compilar recursos C#
         shell: powershell
-        run: .\Construcao\Compilar.ps1 -Destino "$env:RUNNER_TEMP\compilacao"
+        run: .\Construcao\Compilar.ps1 -Destino "$env:GITHUB_WORKSPACE"
 
       - name: Executar testes
         shell: powershell

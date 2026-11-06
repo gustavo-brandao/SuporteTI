@@ -67,7 +67,8 @@ No mesmo submenu, **[2] Consultar um codigo de erro** permite escolher a familia
 - Atua somente na maquina aberta. Nao executa comandos livres ou em destinos remotos.
 - O impacto e apresentado antes das alteracoes. A configuracao e a desativacao do login automatico pedem confirmacao explicita. Quando a operacao requer elevacao, a conta deve ter direitos nessa estacao.
 - Usuario/GPO do usuario nao sao consultados sob outra conta. Operacoes administrativas usam o console atual se ele ja estiver elevado. Caso contrario, quando necessario, o Windows abre um console separado via UAC.
-- Janela elevada: ao abrir, o Suporte TI registra uma impressao SHA256 dos arquivos de `Modulos`, da DLL e do smartctl. A janela elevada nao executa os arquivos da pasta do pacote. Ela copia esses arquivos para uma pasta temporaria em `Windows\Temp` acessivel somente a Administradores e SYSTEM, confere a copia com a impressao registrada e so entao executa a operacao a partir da copia. Se algum arquivo mudou, foi incluido ou removido depois da abertura, a operacao e bloqueada. A copia e removida ao fechar a janela elevada. Isso impede que uma conta comum altere o pacote no pendrive ou na pasta compartilhada entre a abertura e a confirmacao do UAC. Um pacote ja adulterado antes da abertura so e detectado pela assinatura.
+- Janela elevada: ao abrir, o Suporte TI registra uma impressao SHA256 dos arquivos de `Modulos`, da DLL e do smartctl. A janela elevada copia os arquivos para uma pasta em `Windows\Temp` acessivel somente a Administradores e SYSTEM. A copia preserva a marca de origem do Windows e o hash e conferido no destino antes da execucao. Mudancas de conteudo, inclusoes ou remocoes de arquivos depois da abertura bloqueiam a operacao. A copia e removida ao terminar. A impressao protege contra alteracoes posteriores a abertura do pacote.
+- Para abrir a janela elevada a partir de uma pasta compartilhada (UNC ou unidade de rede), os scripts do pacote precisam ter assinatura Authenticode valida. Essa exigencia vale tambem na copia protegida. A conta usada no UAC deve ter acesso de leitura ao caminho original.
 - GPO pode exigir credenciais, apenas consentimento, ou impedir elevacao. A credencial usada para elevar a sessao e tratada pelo proprio Windows.
 - Nao limpa logs, nao esvazia lixeira, nao encerra programas para liberar RAM, nao altera proxy, antivirus ou permissoes.
 - Nao instala servicos, nao cria auditoria propria nem pasta em ProgramData. A unica pasta criada fora do destino escolhido e a copia temporaria da janela elevada em `Windows\Temp`, removida ao fechar essa janela. Comandos do Windows produzem seus logs nativos normalmente.
@@ -153,7 +154,7 @@ Os testes simulam as intervencoes e nao reiniciam servicos nem executam reparos 
 .\Testes\Executar-Testes.ps1 -IncluirConsultasReais
 ```
 
-No GitHub, cada pull request e cada envio para `main` compilam os recursos C# e executam a suite simulada em Windows PowerShell 5.1; o `resultado-testes.json` fica anexado a execucao.
+No GitHub, cada pull request e cada envio para `main` recompilam o executavel e a DLL na pasta do pacote. A suite simulada roda em Windows PowerShell 5.1 com os binarios dessa compilacao. O `resultado-testes.json` fica anexado a execucao.
 
 O segundo comando acrescenta consultas reais somente leitura. Acesso negado e falta de dominio/hardware sao resultados possiveis; um smoke test aprovado verifica o contrato de retorno e nao significa que todos os dados estavam disponiveis. Consulte **Testes/resultado-testes.json** e **Testes/VALIDACAO.md**.
 
